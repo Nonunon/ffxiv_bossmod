@@ -82,8 +82,8 @@ public enum AID : uint
     Unknown3 = 47046, // Boss->self, no cast, single-target
     PhaseChange1 = 48085, // Boss->self, no cast, single-target, phase 2 starts ~25s later
     PhaseChange2 = 48332, // Boss->self, no cast, single-target, phase 2 starts ~25s later
-    PhaseChange3 = 48087, // Boss->self, no cast, single-target, phase 2 starts ~25s later
-    PhaseChange4 = 48086, // Boss->self, no cast, single-target, phase 2 starts ~25s later
+    PhaseChange3 = 48086, // Boss->self, no cast, single-target, phase 2 starts ~25s later
+    PhaseChange4 = 48087, // Boss->self, no cast, single-target, phase 2 starts ~25s later
 }
 
 public enum SID : uint
