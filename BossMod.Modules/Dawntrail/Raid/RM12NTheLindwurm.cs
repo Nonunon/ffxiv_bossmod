@@ -83,6 +83,7 @@ public enum AID : uint
     PhaseChange1 = 48085, // Boss->self, no cast, single-target, phase 2 starts ~25s later
     PhaseChange2 = 48332, // Boss->self, no cast, single-target, phase 2 starts ~25s later
     PhaseChange3 = 48087, // Boss->self, no cast, single-target, phase 2 starts ~25s later
+    PhaseChange4 = 48086, // Boss->self, no cast, single-target, phase 2 starts ~25s later
 }
 
 public enum SID : uint
@@ -525,7 +526,7 @@ class PhaseChange(BossModule module) : BossComponent(module)
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID is AID.PhaseChange1 or AID.PhaseChange2 or AID.PhaseChange3)
+        if ((AID)spell.Action.ID is AID.PhaseChange1 or AID.PhaseChange2 or AID.PhaseChange3 or AID.PhaseChange4)
             Done = true;
     }
 }
