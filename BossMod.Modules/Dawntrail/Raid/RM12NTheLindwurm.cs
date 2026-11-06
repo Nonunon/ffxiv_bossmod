@@ -82,6 +82,7 @@ public enum AID : uint
     Unknown3 = 47046, // Boss->self, no cast, single-target
     PhaseChange1 = 48085, // Boss->self, no cast, single-target, phase 2 starts ~25s later
     PhaseChange2 = 48332, // Boss->self, no cast, single-target, phase 2 starts ~25s later
+    PhaseChange3 = 48087, // Boss->self, no cast, single-target, phase 2 starts ~25s later
 }
 
 public enum SID : uint
@@ -117,6 +118,12 @@ class SerpentineScourge(BossModule module) : Components.GenericAOEs(module, AID.
     {
         if (_aoe is { } aoe)
             yield return aoe;
+    }
+
+    public override void Update()
+    {
+        if (_aoe is { } aoe && WorldState.CurrentTime > aoe.Activation.AddSeconds(1))
+            _aoe = null;
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -518,7 +525,7 @@ class PhaseChange(BossModule module) : BossComponent(module)
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID is AID.PhaseChange1 or AID.PhaseChange2)
+        if ((AID)spell.Action.ID is AID.PhaseChange1 or AID.PhaseChange2 or AID.PhaseChange3)
             Done = true;
     }
 }
@@ -734,5 +741,5 @@ class RM12NTheLindwurmStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Kagekazu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1074, NameID = 14378)]
+[ModuleInfo(Contributors = "Kagekazu, Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1074, NameID = 14378)]
 public class RM12NTheLindwurm(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsRect(20, 15));
