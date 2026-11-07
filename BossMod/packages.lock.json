@@ -74,6 +74,12 @@
         "resolved": "10.0.14",
         "contentHash": "88DUO9lZZ/PfBwO51YKTd5TdVb+Cl31kd6imLKHUZxNXjnPU2V4mHIVT4f8rVK3T+sXXfDbHInzclnOHrK4azw=="
       },
+      "VisibilityPolygonCSharp": {
+        "type": "Direct",
+        "requested": "[1.9.0.26016, )",
+        "resolved": "1.9.0.26016",
+        "contentHash": "VoXNX4rK2qf3acTlwmT8EAGx1HXCFq7L9EfZuWZVtdUJShqrT45ljrePPjuOYrDl5xH83BEzZiOV9mWhHsTdrA=="
+      },
       "Autofac": {
         "type": "Transitive",
         "resolved": "9.0.0",

@@ -449,11 +449,6 @@
         "resolved": "3.1.12",
         "contentHash": "iAg6zifihXEFS/t7fiHhZBGAdCp3FavsF4i2ZIDp0JfeYeDVzvmlbY1CNhhIKimaIzrzSi5M/NBFcWvZT2rB/A=="
       },
-      "System.Data.SQLite": {
-        "type": "Transitive",
-        "resolved": "2.0.4",
-        "contentHash": "iiawN8l6QBzLZTK2BQRyq/1XmvDONghjvXoDhkkQgPTG8bRIsmIxJV1+Lc75fviNgMnjAE3wxReVJAF7P1hkoQ=="
-      },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
         "resolved": "10.0.4",
@@ -464,6 +459,11 @@
         "resolved": "10.0.14",
         "contentHash": "88DUO9lZZ/PfBwO51YKTd5TdVb+Cl31kd6imLKHUZxNXjnPU2V4mHIVT4f8rVK3T+sXXfDbHInzclnOHrK4azw=="
       },
+      "VisibilityPolygonCSharp": {
+        "type": "Transitive",
+        "resolved": "1.9.0.26016",
+        "contentHash": "VoXNX4rK2qf3acTlwmT8EAGx1HXCFq7L9EfZuWZVtdUJShqrT45ljrePPjuOYrDl5xH83BEzZiOV9mWhHsTdrA=="
+      },
       "bossmod": {
         "type": "Project",
         "dependencies": {
@@ -473,8 +473,8 @@
           "DalamudPackager": "[15.0.0, )",
           "Microsoft.Extensions.Caching.Memory": "[10.0.12, )",
           "Pictomancy": "[1.0.10, )",
-          "System.Data.Sqlite": "[2.0.4, )",
-          "System.Numerics.Tensors": "[10.0.14, )"
+          "System.Numerics.Tensors": "[10.0.14, )",
+          "VisibilityPolygonCSharp": "[1.9.0.26016, )"
         }
       }
     }
