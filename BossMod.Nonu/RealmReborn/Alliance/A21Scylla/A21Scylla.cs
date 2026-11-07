@@ -52,13 +52,13 @@ class InfiniteAnguish(BossModule module) : Components.StandardAOEs(module, AID.I
 
 class Souls(BossModule module) : BossComponent(module)
 {
-    // TODO: drain spots are estimated from where souls vanished in replays, verify in game
     private static readonly WPos[] DrainSpots = [.. Enumerable.Range(0, 3).Select(i => A21Scylla.ArenaCenter + 27.5f * (120f * i).Degrees().ToDirection())];
     private const float DrainRadius = 2.5f;
     private const float SmolderRadius = 4;
     private const float ShiverRadius = 3;
+    private const float ShudderDelay = 25;
 
-    private readonly List<(Actor Soul, TetherID Kind, Actor Target)> _souls = [];
+    private readonly List<(Actor Soul, TetherID Kind, Actor Target, DateTime Explosion)> _souls = [];
 
     private IEnumerable<Actor> Frozen => Raid.WithoutSlot().Where(p => p.FindStatus(SID.DeepFreeze) != null);
 
@@ -67,8 +67,9 @@ class Souls(BossModule module) : BossComponent(module)
         var kind = (TetherID)tether.ID;
         if (kind is TetherID.SmolderingSoul or TetherID.ShudderingSoul or TetherID.ShiveringSoul && WorldState.Actors.Find(tether.Target) is { } target)
         {
+            var explosion = _souls.Find(s => s.Soul == source).Explosion;
             _souls.RemoveAll(s => s.Soul == source);
-            _souls.Add((source, kind, target));
+            _souls.Add((source, kind, target, explosion != default ? explosion : WorldState.FutureTime(ShudderDelay)));
         }
     }
 
@@ -82,7 +83,7 @@ class Souls(BossModule module) : BossComponent(module)
         {
             hints.Add(s.Kind switch
             {
-                TetherID.ShudderingSoul => "Drag the purple soul into a drain spot!",
+                TetherID.ShudderingSoul => $"Drag the purple soul into a drain spot! ({Math.Max((s.Explosion - WorldState.CurrentTime).TotalSeconds, 0):f0}s)",
                 TetherID.ShiveringSoul => "Kite the ice soul!",
                 _ => Frozen.Any() ? "Bring the fire soul to a frozen player!" : "Kite the fire soul away from the raid!"
             });
