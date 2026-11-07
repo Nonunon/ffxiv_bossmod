@@ -8,6 +8,7 @@ public enum OID : uint
     ShiveringSoul = 0xBC4, // R1.000, ice, tethered to a player
     SmolderingSoul = 0xBC5, // R1.000, fire, tethered to a player
     ShudderingSoul = 0xBC6, // R1.000, aether, tethered to a player
+    Puddle = 0x1E950D, // R0.500, EventObj, left where a smoldering soul thaws a player, shields from ancient flare
 }
 
 public enum AID : uint
@@ -47,9 +48,86 @@ public enum TetherID : uint
 class AncientFlare(BossModule module) : Components.RaidwideCast(module, AID.AncientFlare);
 class Unholy(BossModule module) : Components.CastCounter(module, AID.Unholy);
 class Topple(BossModule module) : Components.StandardAOEs(module, AID.Topple, new AOEShapeCircle(6.75f));
-class Firewalker(BossModule module) : Components.Cleave(module, AID.Firewalker, new AOEShapeCone(8.75f, 45.Degrees()));
 class SearingChain(BossModule module) : Components.StandardAOEs(module, AID.SearingChain, new AOEShapeRect(61, 2));
 class InfiniteAnguish(BossModule module) : Components.StandardAOEs(module, AID.InfiniteAnguish, new AOEShapeDonut(6, 12));
+
+class Firewalker(BossModule module) : Components.Cleave(module, AID.Firewalker, new AOEShapeCone(8.75f, 45.Degrees()))
+{
+    private const float Warning = 3;
+    private static readonly float[] Delays = [36.4f, 31.4f, 40.3f];
+
+    private bool Due => NextExpected != default && WorldState.CurrentTime >= NextExpected.AddSeconds(-Warning);
+
+    public override void Update()
+    {
+        if (NextExpected == default)
+            NextExpected = WorldState.FutureTime(Delays[0]);
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if (spell.Action == WatchedAction)
+            NextExpected = WorldState.FutureTime(Delays[Math.Min(NumCasts, Delays.Length - 1)]);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (Due)
+            base.AddHints(slot, actor, hints);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Due)
+            base.AddAIHints(slot, actor, assignment, hints);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Due)
+            base.DrawArenaForeground(pcSlot, pc);
+    }
+}
+
+class Puddles(BossModule module) : BossComponent(module)
+{
+    private const float Radius = 4;
+    private DateTime _flare;
+
+    private List<Actor> Active => [.. Module.Enemies(OID.Puddle).Where(p => !p.IsDestroyed && p.EventState != 7)];
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.AncientFlare)
+            _flare = Module.CastFinishAt(spell);
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.AncientFlare)
+            _flare = default;
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (_flare != default && Active is { Count: > 0 } puddles)
+            hints.Add("Stand in a puddle!", !puddles.Any(p => actor.Position.InCircle(p.Position, Radius)));
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (_flare != default && Active is { Count: > 0 } puddles)
+            hints.AddForbiddenZone(ShapeDistance.Intersection([.. puddles.Select(p => ShapeDistance.InvertedCircle(p.Position, Radius))]), _flare);
+    }
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        if (_flare != default)
+            foreach (var p in Active)
+                Arena.ZoneCircle(p.Position, Radius, ArenaColor.SafeFromAOE);
+    }
+}
 
 class Souls(BossModule module) : BossComponent(module)
 {
@@ -161,6 +239,7 @@ class A21ScyllaStates : StateMachineBuilder
         DeathPhase(0, Fight)
             .ActivateOnEnter<AncientFlare>()
             .ActivateOnEnter<Unholy>()
+            .ActivateOnEnter<Puddles>()
             .ActivateOnEnter<Topple>()
             .ActivateOnEnter<Firewalker>()
             .ActivateOnEnter<SearingChain>()
