@@ -124,6 +124,12 @@ class AetherialMines(BossModule module) : Components.GenericTowers(module)
             Towers.RemoveAll(t => t.Position.AlmostEqual(caster.Position, 1));
         }
     }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        foreach (var t in Towers)
+            DrawTower(Arena, t.Position, t.Radius, t.IsInside(pc) || t.NumInside(Module) < t.MinSoakers);
+    }
 }
 
 class Circles(BossModule module) : Components.AddsMulti(module, [OID.StarfallCircle, OID.StonefallCircle], 2)
