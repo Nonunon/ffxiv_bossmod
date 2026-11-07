@@ -67,7 +67,6 @@ class Roast(BossModule module) : Components.Cleave(module, AID.Roast, new AOESha
     }
 }
 
-
 class Cauterize(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeRect(55, 10), (uint)IconID.Cauterize, AID.Cauterize, 5.2f)
 {
     public override Actor? BaitSource(Actor target) => Module.Enemies(OID.FlyingRedDragon).FirstOrDefault();
