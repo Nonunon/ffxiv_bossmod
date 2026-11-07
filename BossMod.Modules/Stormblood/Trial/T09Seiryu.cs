@@ -151,7 +151,16 @@ class ShikiTether(BossModule module, OID oid, AOEShape shape, AID aid, float del
 }
 
 class RedRush(BossModule module) : ShikiTether(module, OID.AkaNoShiki, new AOEShapeRect(82.6f, 2.5f), AID.RedRush, 6.2f);
-class KanaboBait(BossModule module) : ShikiTether(module, OID.IwaNoShiki, new AOEShapeCone(44, 30.Degrees()), AID.Kanabo, 9.3f);
+
+class KanaboBait(BossModule module) : ShikiTether(module, OID.IwaNoShiki, new AOEShapeCone(44, 30.Degrees()), AID.Kanabo, 9.3f)
+{
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        foreach (var b in ActiveBaitsOn(actor))
+            hints.AddForbiddenZone(ShapeDistance.Circle(Arena.Center, 18), b.Activation.AddSeconds(-3));
+    }
+}
 
 // TODO: distance is estimated from two knockbacks into the water, phase 1 walls hide it
 class RedRushKnockback(BossModule module) : Components.Knockback(module, AID.RedRush, stopAtWall: true)
