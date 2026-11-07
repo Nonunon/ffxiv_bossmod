@@ -15,6 +15,7 @@ public enum OID : uint
     BlueOrochi1 = 0x25F5, // R1.000, Coursing River visual
     BlueOrochi2 = 0x2658, // R1.000, Coursing River visual
     BlueOrochi3 = 0x2659, // R1.000, Coursing River visual
+    SerpentTower = 0x1EAA3C, // EventObj type, soak tower, x4
 }
 
 public enum AID : uint
@@ -24,7 +25,9 @@ public enum AID : uint
     FifthElement = 14334, // Boss->self, 4.0s cast, range 100 circle, raidwide
     InfirmSoul = 14333, // Boss->player, 5.0s cast, range 4 circle, tankbuster
     SerpentAscending = 14300, // Boss->self, no cast, visual before spreads
-    SerpentAscendingCast = 15397, // Boss->self, 4.0s cast, single-target; TODO: wiki lists circles to stand in, the only cast seen ended with the kill
+    SerpentAscendingCast = 15397, // Boss->self, 4.0s cast, single-target, visual, soak towers appear about 2.6s later
+    SerpentsFang = 14988, // Helper->self, no cast, range 3 circle, tower with a soaker
+    SerpentsJaws = 14989, // Helper->self, no cast, range 80 circle, raidwide and Damage Down for each empty tower
     SerpentDescending = 14340, // Helper->player, 6.0s cast, range 5 circle spread
     Teleport = 14293, // Boss->location, no cast, single-target, sigil position
     OnmyoSigilVisual = 14338, // Boss->self, no cast, visual
@@ -186,6 +189,37 @@ class BlueBolt(BossModule module) : Components.SimpleLineStack(module, 2.5f, 80,
     }
 }
 
+class SerpentDescending(BossModule module) : Components.SpreadFromCastTargets(module, AID.SerpentDescending, 5)
+{
+    public int NumWaves { get; private set; }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.SerpentDescending && Spreads.Count == 0)
+            ++NumWaves;
+        base.OnCastStarted(caster, spell);
+    }
+}
+
+// TODO: a second player in a tower was never seen, so the limit of one soaker is a guess
+class SerpentTowers(BossModule module) : Components.GenericTowers(module)
+{
+    public override void OnActorCreated(Actor actor)
+    {
+        if (actor.OID == (uint)OID.SerpentTower)
+            Towers.Add(new(actor.Position, 3, activation: WorldState.FutureTime(7.6f)));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID is AID.SerpentsFang or AID.SerpentsJaws)
+        {
+            ++NumCasts;
+            Towers.RemoveAll(t => t.IsInside(caster.Position));
+        }
+    }
+}
+
 class ForbiddenArts(BossModule module) : Components.GenericWildCharge(module, 4, AID.ForbiddenArtsSecond, 80)
 {
     private DateTime _hideAt;
@@ -261,7 +295,6 @@ class StrengthOfSpirit(BossModule module) : Components.RaidwideCast(module, AID.
 class DragonsWake(BossModule module) : Components.RaidwideCast(module, AID.DragonsWake);
 class CoursingRiverDamage(BossModule module) : Components.RaidwideCast(module, AID.CoursingRiverDamage);
 class InfirmSoul(BossModule module) : Components.BaitAwayCast(module, AID.InfirmSoul, new AOEShapeCircle(4), centerAtTarget: true, endsOnCastEvent: true);
-class SerpentDescending(BossModule module) : Components.SpreadFromCastTargets(module, AID.SerpentDescending, 5);
 class KujiKiri(BossModule module) : Components.StandardAOEs(module, AID.FortuneBladeSigil, new AOEShapeRect(50, 2));
 class HundredTonzeSwing(BossModule module) : Components.StandardAOEs(module, AID.HundredTonzeSwing, 16);
 class Kanabo(BossModule module) : Components.StandardAOEs(module, AID.Kanabo, new AOEShapeCone(40, 30.Degrees()));
@@ -290,6 +323,7 @@ class T09SeiryuStates : StateMachineBuilder
             .ActivateOnEnter<DragonsWake>()
             .ActivateOnEnter<InfirmSoul>()
             .ActivateOnEnter<SerpentDescending>()
+            .ActivateOnEnter<SerpentTowers>()
             .ActivateOnEnter<Sigils>()
             .ActivateOnEnter<KujiKiri>()
             .ActivateOnEnter<HundredTonzeSwing>()
@@ -319,6 +353,16 @@ class T09SeiryuStates : StateMachineBuilder
         Raidwide(id + 0xE0000, 2.1f);
         Mixed(id + 0xF0000, 8.2f);
         Overtime(id + 0x100000, 14.2f);
+        Towers(id + 0x110000, 7.9f);
+        Spreads(id + 0x120000, 21.3f, 4);
+        Grid(id + 0x130000, 2.2f, 4);
+        Sigil(id + 0x140000, 7.3f, 5);
+        Tankbuster(id + 0x150000, 4.2f);
+        Raidwide(id + 0x160000, 2.1f);
+        OrochiRaidwide(id + 0x170000, 12.6f);
+        Raidwide(id + 0x180000, 2.1f);
+        Raidwide(id + 0x190000, 3.2f);
+        Cast(id + 0x1A0000, AID.SummonShikiIwa, 12.1f, 3, "Summon");
 
         SimpleState(id + 0xFF0000, 10000, "???");
     }
@@ -342,7 +386,7 @@ class T09SeiryuStates : StateMachineBuilder
 
     private void Spreads(uint id, float delay, int count)
     {
-        ComponentCondition<SerpentDescending>(id, delay, comp => comp.NumFinishedSpreads > (count - 1) * 4, "Spreads");
+        ComponentCondition<SerpentDescending>(id, delay, comp => comp.NumWaves >= count && comp.Spreads.Count == 0, "Spreads");
     }
 
     private void Grid(uint id, float delay, int count)
@@ -358,7 +402,7 @@ class T09SeiryuStates : StateMachineBuilder
         ComponentCondition<HundredTonzeSwing>(id + 0x30, 4.8f, comp => comp.NumCasts >= 2, "Circles");
         ComponentCondition<YamaKagura>(id + 0x40, 6.1f, comp => comp.NumCasts >= 4, "Lines");
         ComponentCondition<Kanabo>(id + 0x50, 6.2f, comp => comp.NumCasts >= 2, "Cones");
-        Cast(id + 0x60, AID.StrengthOfSpirit, 31.0f, 5, "Adds end")
+        Cast(id + 0x60, AID.StrengthOfSpirit, 27.0f, 5, "Adds end")
             .SetHint(StateMachine.StateHint.Raidwide);
         ComponentCondition<DragonsWake>(id + 0x70, 27.1f, comp => comp.NumCasts >= 1, "Raidwide")
             .SetHint(StateMachine.StateHint.Raidwide);
@@ -408,8 +452,28 @@ class T09SeiryuStates : StateMachineBuilder
             .SetHint(StateMachine.StateHint.Knockback);
         ComponentCondition<Handprint>(id + 0x30, 5.3f, comp => comp.NumCasts >= 6, "Fist");
         Cast(id + 0x40, AID.SerpentAscendingCast, 2.3f, 4, "Serpent Ascending");
-        ComponentCondition<ForceOfNatureCenter>(id + 0x50, 2.4f, comp => comp.NumCasts >= 2, "Center + knockback")
+        ComponentCondition<ForceOfNatureCenter>(id + 0x50, 2.3f, comp => comp.NumCasts >= 2, "Center + knockback")
             .SetHint(StateMachine.StateHint.Knockback);
+    }
+
+    private void Towers(uint id, float delay)
+    {
+        ComponentCondition<SerpentTowers>(id, delay, comp => comp.NumCasts > 0, "Towers");
+        ComponentCondition<FifthElement>(id + 0x10, 4.0f, comp => comp.NumCasts >= 5, "Raidwide")
+            .SetHint(StateMachine.StateHint.Raidwide);
+    }
+
+    private void OrochiRaidwide(uint id, float delay)
+    {
+        Cast(id, AID.SummonShikiOrochi, delay, 5, "Summon");
+        ComponentCondition<CoursingRiver>(id + 0x10, 10.5f, comp => comp.NumCasts >= 4, "Knockback")
+            .SetHint(StateMachine.StateHint.Knockback);
+        ComponentCondition<FifthElement>(id + 0x20, 0.6f, comp => comp.NumCasts >= 7, "Raidwide")
+            .SetHint(StateMachine.StateHint.Raidwide);
+        Cast(id + 0x30, AID.SummonShikiOrochi, 2.1f, 5, "Summon");
+        ComponentCondition<CoursingRiver>(id + 0x40, 10.5f, comp => comp.NumCasts >= 5, "Knockback")
+            .SetHint(StateMachine.StateHint.Knockback);
+        ComponentCondition<ForbiddenArts>(id + 0x50, 5.9f, comp => comp.NumCasts >= 2, "Line stack x2");
     }
 }
 
