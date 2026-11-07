@@ -4,7 +4,7 @@ public enum OID : uint
 {
     Boss = 0xBE0, // R4.000, x1
     Helper = 0x1B2, // R0.500, x5
-    IceCage = 0xBE1, // R1.800, untargetable, spawns on players hit by midwinter tragedy, breaks with the freeze ~3s after curtain call
+    IceCage = 0xBE1, // R1.800, untargetable, spawns on players hit by midwinter tragedy, melted by toad breath, otherwise breaks ~3s after curtain call
     DimensionalCompression = 0xBE2, // R1.000, tethered to a player, shrinks whatever it reaches
     ExperimentalByProduct33 = 0xBE3, // R1.000, casts the last song (raidwide silence) if not killed
     ExperimentalByProduct66 = 0xBE4, // R1.000, casts the last bout (raidwide pacification) if not killed
@@ -33,7 +33,7 @@ public enum SID : uint
     Silence = 7, // ExperimentalByProduct33->player, extra=0x0
     Heavy = 14, // Boss->player, extra=0x32
     Minimum = 438, // DimensionalCompression->player/KumKum/Kichiknebik, extra=0x32
-    FireToad = 511, // Boss->player, extra=0x2
+    FireToad = 511, // Boss->player, extra=0x2, 20s, grants toad breath (2443), an 8y cone that melts ice cages
     DeepFreeze = 3479, // Boss->player, extra=0x1
 }
 
@@ -51,9 +51,9 @@ public enum TetherID : uint
 class Coloratura(BossModule module) : Components.Cleave(module, AID.Coloratura, new AOEShapeCone(12, 60.Degrees()));
 class BlizzagaForte(BossModule module) : Components.StandardAOEs(module, AID.BlizzagaForte, new AOEShapeCircle(10));
 class Darkness(BossModule module) : Components.StandardAOEs(module, AID.Darkness, new AOEShapeCone(8, 60.Degrees()));
-class FiragaForte(BossModule module) : Components.CastCounter(module, AID.FiragaForte);
+class RanineComedy(BossModule module) : Components.CastCounter(module, AID.RanineComedy);
 
-class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID.CurtainCall, 60, false)
+class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID.CurtainCall, 60, false, 1, 1.2f)
 {
     public override IEnumerable<Actor> BlockerActors()
         => Module.Enemies(OID.IceCage).Where(c => !c.IsDead && !c.Position.InCircle(Module.PrimaryActor.Position, Module.PrimaryActor.HitboxRadius));
@@ -100,6 +100,8 @@ class IceCages(BossModule module) : Components.CastCounter(module, AID.Midwinter
     {
         if (_targets[slot])
             hints.Add("You will be frozen into an ice cage!", false);
+        if (actor.FindStatus(SID.FireToad) != null && Module.Enemies(OID.IceCage).Count(c => !c.IsDead) > 1)
+            hints.Add("Toad breath melts a cage, leave one for curtain call", false);
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc) => Arena.Actors(Module.Enemies(OID.IceCage).Where(c => !c.IsDead), ArenaColor.Object, true);
@@ -163,7 +165,7 @@ class A23AmonStates : StateMachineBuilder
     {
         DeathPhase(0, Fight)
             .ActivateOnEnter<Coloratura>()
-            .ActivateOnEnter<FiragaForte>()
+            .ActivateOnEnter<RanineComedy>()
             .ActivateOnEnter<BlizzagaForte>()
             .ActivateOnEnter<Darkness>()
             .ActivateOnEnter<CurtainCall>()
@@ -175,20 +177,10 @@ class A23AmonStates : StateMachineBuilder
 
     private void Fight(uint id)
     {
-        FiragaForte(id, 25.6f, 1);
-        FiragaForte(id + 0x10000, 19.0f, 2);
-        ComponentCondition<IceCages>(id + 0x20000, 25.2f, c => c.NumCasts >= 1, "Cages", Late);
-        FiragaForte(id + 0x30000, 6.5f, 3);
-        ComponentCondition<IceCages>(id + 0x40000, 12.0f, c => c.NumCasts >= 2, "Cages", Late);
-        ComponentCondition<CurtainCall>(id + 0x50000, 20.2f, c => c.NumCasts >= 1, "Curtain call", Late);
-        FiragaForte(id + 0x60000, 6.8f, 4);
+        ComponentCondition<RanineComedy>(id, 65.0f, c => c.NumCasts >= 1, "Toads", Late);
+        ComponentCondition<IceCages>(id + 0x10000, 6.2f, c => c.NumCasts >= 1, "Cages", Late);
+        ComponentCondition<CurtainCall>(id + 0x20000, 38.7f, c => c.NumCasts >= 1, "Curtain call", Late);
         SimpleState(id + 0xFF0000, 10000, "???");
-    }
-
-    private void FiragaForte(uint id, float delay, int count)
-    {
-        ComponentCondition<FiragaForte>(id, delay, c => c.NumCasts >= count, "Raidwide", Late)
-            .SetHint(StateMachine.StateHint.Raidwide);
     }
 }
 
