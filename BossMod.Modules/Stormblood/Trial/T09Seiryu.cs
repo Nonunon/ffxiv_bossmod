@@ -476,7 +476,7 @@ class T09SeiryuStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "skmagiik", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 637, NameID = 7922)]
+[ModuleInfo(Contributors = "skmagiik & Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 637, NameID = 7922)]
 public class T09Seiryu(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(Phase1Radius))
 {
     public const float Phase1Radius = 19.5f;
