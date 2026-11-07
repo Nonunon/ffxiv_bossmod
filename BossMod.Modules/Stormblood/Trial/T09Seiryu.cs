@@ -23,7 +23,8 @@ public enum AID : uint
     AutoAttackAdds = 872, // NumaNoShiki/DoroNoShiki->player, no cast, single-target
     FifthElement = 14334, // Boss->self, 4.0s cast, range 100 circle, raidwide
     InfirmSoul = 14333, // Boss->player, 5.0s cast, range 4 circle, tankbuster
-    SerpentAscending = 14300, // Boss->self, no cast, visual before spreads; TODO: wiki lists circles to stand in, kills end before they appear
+    SerpentAscending = 14300, // Boss->self, no cast, visual before spreads
+    SerpentAscendingCast = 15397, // Boss->self, 4.0s cast, single-target; TODO: wiki lists circles to stand in, the only cast seen ended with the kill
     SerpentDescending = 14340, // Helper->player, 6.0s cast, range 5 circle spread
     Teleport = 14293, // Boss->location, no cast, single-target, sigil position
     OnmyoSigilVisual = 14338, // Boss->self, no cast, visual
@@ -185,7 +186,6 @@ class BlueBolt(BossModule module) : Components.SimpleLineStack(module, 2.5f, 80,
     }
 }
 
-// TODO: second hit seems to aim at the other healer, nothing in the logs shows it before it fires
 class ForbiddenArts(BossModule module) : Components.GenericWildCharge(module, 4, AID.ForbiddenArtsSecond, 80)
 {
     private DateTime _hideAt;
@@ -214,6 +214,15 @@ class ForbiddenArts(BossModule module) : Components.GenericWildCharge(module, 4,
             case AID.ForbiddenArtsFirst:
                 Hits = 1;
                 Activation = WorldState.FutureTime(2.1f);
+                foreach (var (i, p) in Raid.WithSlot())
+                {
+                    if (PlayerRoles[i] == PlayerRole.Share && p.Role == Role.Healer)
+                    {
+                        PlayerRoles[Array.IndexOf(PlayerRoles, PlayerRole.Target)] = PlayerRole.Share;
+                        PlayerRoles[i] = PlayerRole.Target;
+                        break;
+                    }
+                }
                 break;
             case AID.ForbiddenArtsSecond:
                 ++NumCasts;
@@ -309,6 +318,7 @@ class T09SeiryuStates : StateMachineBuilder
         Tankbuster(id + 0xD0000, 8.1f);
         Raidwide(id + 0xE0000, 2.1f);
         Mixed(id + 0xF0000, 8.2f);
+        Overtime(id + 0x100000, 14.2f);
 
         SimpleState(id + 0xFF0000, 10000, "???");
     }
@@ -388,6 +398,18 @@ class T09SeiryuStates : StateMachineBuilder
         Spreads(id + 0x50, 8.0f, 3);
         ComponentCondition<YamaKagura>(id + 0x60, 0.9f, comp => comp.NumCasts >= 8, "Lines");
         Grid(id + 0x70, 3.0f, 3);
+    }
+
+    private void Overtime(uint id, float delay)
+    {
+        ComponentCondition<Handprint>(id, delay, comp => comp.NumCasts >= 4, "Fist");
+        ComponentCondition<Handprint>(id + 0x10, 8.2f, comp => comp.NumCasts >= 5, "Fist");
+        ComponentCondition<CoursingRiver>(id + 0x20, 2.9f, comp => comp.NumCasts >= 3, "Knockback")
+            .SetHint(StateMachine.StateHint.Knockback);
+        ComponentCondition<Handprint>(id + 0x30, 5.3f, comp => comp.NumCasts >= 6, "Fist");
+        Cast(id + 0x40, AID.SerpentAscendingCast, 2.3f, 4, "Serpent Ascending");
+        ComponentCondition<ForceOfNatureCenter>(id + 0x50, 2.4f, comp => comp.NumCasts >= 2, "Center + knockback")
+            .SetHint(StateMachine.StateHint.Knockback);
     }
 }
 
