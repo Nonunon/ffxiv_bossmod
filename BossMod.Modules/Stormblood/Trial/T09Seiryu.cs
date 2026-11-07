@@ -25,6 +25,7 @@ public enum AID : uint
     InfirmSoul = 14333, // Boss->player, 5.0s cast, range 4 circle, tankbuster
     SerpentAscending = 14300, // Boss->self, no cast, visual before spreads
     SerpentDescending = 14340, // Helper->player, 6.0s cast, range 5 circle spread
+    Teleport = 14293, // Boss->location, no cast, single-target, sigil position
     OnmyoSigilVisual = 14338, // Boss->self, no cast, visual
     SerpentEyeSigilVisual = 14339, // Boss->self, no cast, visual
     OnmyoSigil = 14855, // Helper->self, 3.0s cast, range 12 circle
@@ -101,6 +102,38 @@ class Phase2Water(BossModule module) : BossComponent(module)
     {
         if (Active)
             hints.AddForbiddenZone(ShapeDistance.Donut(Arena.Center, T09Seiryu.IslandRadius, T09Seiryu.ArenaRadius));
+    }
+}
+
+class Sigils(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeCircle Onmyo = new(12);
+    private static readonly AOEShapeDonut SerpentEye = new(7, 30);
+
+    private WPos _origin;
+    private AOEInstance? _aoe;
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => Utils.ZeroOrOne(_aoe);
+
+    public override void OnActorModelStateChange(Actor actor, byte modelState, byte animState1, byte animState2)
+    {
+        if (actor == Module.PrimaryActor && modelState is 32 or 33)
+            _aoe = new(modelState == 32 ? Onmyo : SerpentEye, _origin, default, WorldState.FutureTime(5.6f));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        switch ((AID)spell.Action.ID)
+        {
+            case AID.Teleport:
+                _origin = spell.TargetXZ;
+                break;
+            case AID.OnmyoSigil:
+            case AID.SerpentEyeSigil:
+                ++NumCasts;
+                _aoe = null;
+                break;
+        }
     }
 }
 
@@ -182,8 +215,6 @@ class DragonsWake(BossModule module) : Components.RaidwideCast(module, AID.Drago
 class CoursingRiverDamage(BossModule module) : Components.RaidwideCast(module, AID.CoursingRiverDamage);
 class InfirmSoul(BossModule module) : Components.BaitAwayCast(module, AID.InfirmSoul, new AOEShapeCircle(4), centerAtTarget: true, endsOnCastEvent: true);
 class SerpentDescending(BossModule module) : Components.SpreadFromCastTargets(module, AID.SerpentDescending, 5);
-class OnmyoSigil(BossModule module) : Components.StandardAOEs(module, AID.OnmyoSigil, 12);
-class SerpentEyeSigil(BossModule module) : Components.StandardAOEs(module, AID.SerpentEyeSigil, new AOEShapeDonut(7, 30));
 class KujiKiri(BossModule module) : Components.StandardAOEs(module, AID.FortuneBladeSigil, new AOEShapeRect(50, 2));
 class HundredTonzeSwing(BossModule module) : Components.StandardAOEs(module, AID.HundredTonzeSwing, 16);
 class Kanabo(BossModule module) : Components.StandardAOEs(module, AID.Kanabo, new AOEShapeCone(40, 30.Degrees()));
@@ -213,8 +244,7 @@ class T09SeiryuStates : StateMachineBuilder
             .ActivateOnEnter<DragonsWake>()
             .ActivateOnEnter<InfirmSoul>()
             .ActivateOnEnter<SerpentDescending>()
-            .ActivateOnEnter<OnmyoSigil>()
-            .ActivateOnEnter<SerpentEyeSigil>()
+            .ActivateOnEnter<Sigils>()
             .ActivateOnEnter<KujiKiri>()
             .ActivateOnEnter<HundredTonzeSwing>()
             .ActivateOnEnter<YamaKagura>()
@@ -260,7 +290,7 @@ class T09SeiryuStates : StateMachineBuilder
 
     private void Sigil(uint id, float delay, int count)
     {
-        ComponentCondition<OnmyoSigil>(id, delay, comp => comp.NumCasts + Module.FindComponent<SerpentEyeSigil>()!.NumCasts >= count, "In/out");
+        ComponentCondition<Sigils>(id, delay, comp => comp.NumCasts >= count, "In/out");
     }
 
     private void Spreads(uint id, float delay, int count)
