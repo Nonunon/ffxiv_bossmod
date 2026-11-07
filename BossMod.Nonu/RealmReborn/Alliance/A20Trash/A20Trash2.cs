@@ -14,6 +14,7 @@ public enum AID : uint
     AutoAttack = 870, // Acheron/Gomory/GreenDragon->player, no cast, single-target
     Aero = 969, // Gomory/UneisClone->player, 1.0s cast, single-target
     Fire = 966, // DogasClone->player, 1.0s cast, single-target
+    Drain = 2339, // DogasClone->player, 4.0s cast, single-target
     Darkness = 1875, // Gomory->self, 1.0s cast, range 6+R 120-degree cone
     GreatDivide = 1725, // Acheron->self, no cast, range 5+R width 8 rect
     Touchdown = 564, // GreenDragon->self, no cast, range 10 circle, as it lands; resolves before the module can start, so no component
