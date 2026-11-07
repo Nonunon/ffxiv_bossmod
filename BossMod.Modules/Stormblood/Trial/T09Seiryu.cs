@@ -2,7 +2,7 @@ namespace BossMod.Stormblood.Trial.WreathOfSnakes.T09Seiryu;
 
 public enum OID : uint
 {
-    Boss = 0x25F4, // R6.000, x1
+    Boss = 0x25F4, // R4.400, x1
     Helper = 0x233C, // R0.500, Helper type
     AkaNoShiki = 0x2786, // R2.600, red wheel, charges its tether target
     AoNoShiki = 0x2787, // R3.000, blue wheel, line stack on its tether target
@@ -10,7 +10,7 @@ public enum OID : uint
     TenNoShiki = 0x25F8, // R2.700, wide line
     NumaNoShiki = 0x25F6, // R2.400, big add, explodes for about 9k on the party
     DoroNoShiki = 0x25F7, // R1.440, small add, explodes for about 1k on the party
-    YamaNoShiki = 0x25F9, // phase 2 fists
+    YamaNoShiki = 0x25F9, // R12.000, phase 2 fists
     BlueOrochi = 0x2672, // R1.000, x4, idle during the add phase
     BlueOrochi1 = 0x25F5, // R1.000, Coursing River visual
     BlueOrochi2 = 0x2658, // R1.000, Coursing River visual
@@ -35,18 +35,18 @@ public enum AID : uint
     OnmyoSigil = 14855, // Helper->self, 3.0s cast, range 12 circle
     SerpentEyeSigil = 14856, // Helper->self, 3.0s cast, range 7-30 donut
     KujiKiri = 14305, // Boss->self, 4.0s cast, single-target, visual
-    FortuneBladeSigil = 14342, // Helper->self, 6.5s cast, range 50 width 4 rect
+    FortuneBladeSigil = 14342, // Helper->self, 6.5s cast, range 50+R width 4 rect
     SummonShikiWheels = 14286, // Boss->self, 3.0s cast, single-target, visual
     SummonShikiIwa = 14285, // Boss->self, 3.0s cast, single-target, visual
     SummonShikiYama = 14287, // Boss->self, 3.0s cast, single-target, visual
     SummonShikiOrochi = 14288, // Boss->self, 5.0s cast, single-target, visual
     BlueBoltTarget = 14319, // Helper->player, no cast, selects the line stack target
-    BlueBolt = 15388, // AoNoShiki->self, no cast, range 80 width 5 rect, line stack
-    RedRush = 15389, // AkaNoShiki->self, no cast, range 80 width 5 rect, knocks back the tether target
+    BlueBolt = 15388, // AoNoShiki->self, no cast, range 80+R width 5 rect, line stack
+    RedRush = 15389, // AkaNoShiki->self, no cast, range 80+R width 5 rect, knocks back the tether target
     HundredTonzeSwing = 15390, // IwaNoShiki->self, 4.0s cast, range 16 circle
     KanaboVisual = 15392, // IwaNoShiki->self, 6.0s cast, single-target, visual
-    Kanabo = 15391, // IwaNoShiki->self, 3.0s cast, range 40 60-degree cone
-    YamaKagura = 14355, // TenNoShiki->self, 5.0s cast, range 60 width 6 rect
+    Kanabo = 15391, // IwaNoShiki->self, 3.0s cast, range 40+R 60-degree cone
+    YamaKagura = 14355, // TenNoShiki->self, 5.0s cast, range 60+R width 6 rect
     ExplosionNuma = 14347, // NumaNoShiki->self, no cast, range 80 circle, on death
     ExplosionDoro = 14348, // DoroNoShiki->self, no cast, range 80 circle, on death
     StrengthOfSpirit = 14281, // Boss->self, 5.0s cast, range 80 circle, damage scales with adds left alive
@@ -61,8 +61,8 @@ public enum AID : uint
     CoursingRiverDamage = 14349, // Helper->self, 7.5s cast, range 21 circle, raidwide
     CoursingRiver = 14350, // Helper->self, 7.5s cast, range 90 width 90 rect, knockback 25
     ForbiddenArtsTarget = 14277, // Helper->player, no cast, selects the line stack target
-    ForbiddenArtsFirst = 15490, // Boss->self, no cast, range 80 width 8 rect, line stack
-    ForbiddenArtsSecond = 15474, // Boss->self, no cast, range 80 width 8 rect, line stack
+    ForbiddenArtsFirst = 15490, // Boss->self, no cast, range 80+R width 8 rect, line stack
+    ForbiddenArtsSecond = 15474, // Boss->self, no cast, range 80+R width 8 rect, line stack
     HandprintVisual1 = 14309, // YamaNoShiki->self, no cast, visual
     HandprintVisual2 = 14310, // YamaNoShiki->self, no cast, visual
     HandprintNear = 14343, // Helper->self, 4.5s cast, range 20 180-degree cone
@@ -150,8 +150,8 @@ class ShikiTether(BossModule module, OID oid, AOEShape shape, AID aid, float del
     }
 }
 
-class RedRush(BossModule module) : ShikiTether(module, OID.AkaNoShiki, new AOEShapeRect(80, 2.5f), AID.RedRush, 6.2f);
-class KanaboBait(BossModule module) : ShikiTether(module, OID.IwaNoShiki, new AOEShapeCone(40, 30.Degrees()), AID.Kanabo, 9.3f);
+class RedRush(BossModule module) : ShikiTether(module, OID.AkaNoShiki, new AOEShapeRect(82.6f, 2.5f), AID.RedRush, 6.2f);
+class KanaboBait(BossModule module) : ShikiTether(module, OID.IwaNoShiki, new AOEShapeCone(44, 30.Degrees()), AID.Kanabo, 9.3f);
 
 // TODO: distance is estimated from two knockbacks into the water, phase 1 walls hide it
 class RedRushKnockback(BossModule module) : Components.Knockback(module, AID.RedRush, stopAtWall: true)
@@ -175,7 +175,7 @@ class RedRushKnockback(BossModule module) : Components.Knockback(module, AID.Red
     }
 }
 
-class BlueBolt(BossModule module) : Components.SimpleLineStack(module, 2.5f, 80, AID.BlueBoltTarget, AID.BlueBolt, 6.1f)
+class BlueBolt(BossModule module) : Components.SimpleLineStack(module, 2.5f, 83, AID.BlueBoltTarget, AID.BlueBolt, 6.1f)
 {
     private readonly RedRush? _rush = module.FindComponent<RedRush>();
 
@@ -201,7 +201,6 @@ class SerpentDescending(BossModule module) : Components.SpreadFromCastTargets(mo
     }
 }
 
-// TODO: a second player in a tower was never seen, so the limit of one soaker is a guess
 class SerpentTowers(BossModule module) : Components.GenericTowers(module)
 {
     public override void OnActorCreated(Actor actor)
@@ -220,7 +219,7 @@ class SerpentTowers(BossModule module) : Components.GenericTowers(module)
     }
 }
 
-class ForbiddenArts(BossModule module) : Components.GenericWildCharge(module, 4, AID.ForbiddenArtsSecond, 80)
+class ForbiddenArts(BossModule module) : Components.GenericWildCharge(module, 4, AID.ForbiddenArtsSecond, 84.4f)
 {
     private DateTime _hideAt;
 
@@ -295,10 +294,10 @@ class StrengthOfSpirit(BossModule module) : Components.RaidwideCast(module, AID.
 class DragonsWake(BossModule module) : Components.RaidwideCast(module, AID.DragonsWake);
 class CoursingRiverDamage(BossModule module) : Components.RaidwideCast(module, AID.CoursingRiverDamage);
 class InfirmSoul(BossModule module) : Components.BaitAwayCast(module, AID.InfirmSoul, new AOEShapeCircle(4), centerAtTarget: true, endsOnCastEvent: true);
-class KujiKiri(BossModule module) : Components.StandardAOEs(module, AID.FortuneBladeSigil, new AOEShapeRect(50, 2));
+class KujiKiri(BossModule module) : Components.StandardAOEs(module, AID.FortuneBladeSigil, new AOEShapeRect(50.5f, 2));
 class HundredTonzeSwing(BossModule module) : Components.StandardAOEs(module, AID.HundredTonzeSwing, 16);
-class Kanabo(BossModule module) : Components.StandardAOEs(module, AID.Kanabo, new AOEShapeCone(40, 30.Degrees()));
-class YamaKagura(BossModule module) : Components.StandardAOEs(module, AID.YamaKagura, new AOEShapeRect(60, 3));
+class Kanabo(BossModule module) : Components.StandardAOEs(module, AID.Kanabo, new AOEShapeCone(44, 30.Degrees()));
+class YamaKagura(BossModule module) : Components.StandardAOEs(module, AID.YamaKagura, new AOEShapeRect(62.7f, 3));
 class Adds(BossModule module) : Components.AddsMulti(module, [OID.DoroNoShiki, OID.NumaNoShiki], 1);
 class Handprint(BossModule module) : Components.StandardAOEs(module, AID.HandprintFar, new AOEShapeCone(40, 90.Degrees()));
 class ForceOfNatureCenter(BossModule module) : Components.StandardAOEs(module, AID.ForceOfNatureCenter, 5);
@@ -478,8 +477,9 @@ class T09SeiryuStates : StateMachineBuilder
 }
 
 [ModuleInfo(Contributors = "skmagiik", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 637, NameID = 7922)]
-public class T09Seiryu(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(IslandRadius))
+public class T09Seiryu(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(Phase1Radius))
 {
+    public const float Phase1Radius = 19.5f;
     public const float IslandRadius = 20;
-    public const float ArenaRadius = 38;
+    public const float ArenaRadius = 40;
 }
