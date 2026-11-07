@@ -27,7 +27,45 @@ public enum TetherID : uint
     Wright = 22, // ClockworkWright->Boss, later retargets to a player (applies fetters + electrocution)
 }
 
-class AstralPunch(BossModule module) : Components.Cleave(module, AID.AstralPunch, new AOEShapeCone(12, 45.Degrees()));
+class AstralPunch(BossModule module) : Components.Cleave(module, AID.AstralPunch, new AOEShapeCone(12, 45.Degrees()))
+{
+    private const float Warning = 3;
+    private static readonly float[] Delays = [14.5f, 34.0f, 15.2f];
+
+    private bool Due => NextExpected != default && WorldState.CurrentTime >= NextExpected.AddSeconds(-Warning);
+
+    public override void Update()
+    {
+        if (NextExpected == default)
+            NextExpected = WorldState.FutureTime(Delays[0]);
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if (spell.Action == WatchedAction)
+            NextExpected = WorldState.FutureTime(Delays[Math.Min(NumCasts, Delays.Length - 1)]);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (Due)
+            base.AddHints(slot, actor, hints);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Due)
+            base.AddAIHints(slot, actor, assignment, hints);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Due)
+            base.DrawArenaForeground(pcSlot, pc);
+    }
+}
+
 class Aura(BossModule module) : Components.StandardAOEs(module, AID.Aura, 8);
 class VileUtterance(BossModule module) : Components.StandardAOEs(module, AID.VileUtterance, new AOEShapeCone(64, 22.5f.Degrees()));
 class BloodMoon(BossModule module) : Components.CastCounter(module, AID.BloodMoon);
@@ -61,7 +99,7 @@ class ClockworkWrights(BossModule module) : BossComponent(module)
     {
         Arena.Actors(Wrights, ArenaColor.Enemy);
         foreach (var w in Wrights)
-            if (w.Tether.ID == (uint)TetherID.Wright && WorldState.Actors.Find(w.Tether.Target) is { } target)
+            if (Held(w) is { } target)
                 Arena.AddLine(w.Position, target.Position, target == pc ? ArenaColor.Danger : ArenaColor.Object);
     }
 }
