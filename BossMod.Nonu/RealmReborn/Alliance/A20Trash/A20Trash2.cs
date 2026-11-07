@@ -23,8 +23,33 @@ public enum AID : uint
 }
 
 class Darkness(BossModule module) : Components.StandardAOEs(module, AID.Darkness, new AOEShapeCone(6.9f, 60.Degrees()));
-class GreatDivide(BossModule module) : Components.Cleave(module, AID.GreatDivide, new AOEShapeRect(7.5f, 4), (uint)OID.Acheron);
-class DragonBreath(BossModule module) : Components.Cleave(module, AID.DragonBreath, new AOEShapeRect(37, 4), (uint)OID.GreenDragon);
+
+class GreatDivide(BossModule module) : Components.GenericAOEs(module, AID.GreatDivide)
+{
+    private const float WindowStart = 5;
+    private const float WindowEnd = 12;
+    private static readonly AOEShapeRect Shape = new(7.5f, 4);
+    private readonly Dictionary<ulong, DateTime> _engaged = [];
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        foreach (var a in Module.Enemies(OID.Acheron).Where(a => !a.IsDead && a.TargetID != actor.InstanceID))
+            if (_engaged.TryGetValue(a.InstanceID, out var engaged) && engaged != default && WorldState.CurrentTime >= engaged.AddSeconds(WindowStart) && WorldState.CurrentTime < engaged.AddSeconds(WindowEnd)
+                && WorldState.Actors.Find(a.TargetID) is { } target)
+                yield return new(Shape, a.Position, Angle.FromDirection(target.Position - a.Position), engaged.AddSeconds(WindowEnd));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if ((OID)caster.OID != OID.Acheron)
+            return;
+        if ((AID)spell.Action.ID == AID.AutoAttack)
+            _engaged.TryAdd(caster.InstanceID, WorldState.CurrentTime);
+        else if ((AID)spell.Action.ID == AID.GreatDivide)
+            _engaged[caster.InstanceID] = default;
+    }
+}
 
 class A20Trash2Pack1States : StateMachineBuilder
 {
@@ -53,7 +78,6 @@ class A20Trash2Pack2States : StateMachineBuilder
     {
         var uneiSeen = false;
         TrivialPhase()
-            .ActivateOnEnter<DragonBreath>()
             .Raw.Update = () =>
             {
                 uneiSeen |= module.Enemies(OID.UneisClone).Count > 0;

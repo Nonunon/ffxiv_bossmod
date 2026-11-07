@@ -27,7 +27,46 @@ public enum IconID : uint
 
 class DoubleSmash(BossModule module) : Components.StandardAOEs(module, AID.DoubleSmash, new AOEShapeCone(7.56f, 60.Degrees()));
 class LowPeal(BossModule module) : Components.StandardAOEs(module, AID.LowPeal, new AOEShapeCircle(4));
-class Roast(BossModule module) : Components.Cleave(module, AID.Roast, new AOEShapeRect(37, 4), (uint)OID.RedDragon);
+
+class Roast(BossModule module) : Components.Cleave(module, AID.Roast, new AOEShapeRect(37, 4), (uint)OID.RedDragon)
+{
+    private DateTime _start;
+
+    private bool Due => _start != default && WorldState.CurrentTime >= _start;
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if ((AID)spell.Action.ID == AID.Touchdown)
+        {
+            _start = WorldState.FutureTime(13);
+            NextExpected = WorldState.FutureTime(15.7f);
+        }
+        else if (NumCasts >= 2)
+        {
+            _start = default;
+        }
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (Due)
+            base.AddHints(slot, actor, hints);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Due)
+            base.AddAIHints(slot, actor, assignment, hints);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Due)
+            base.DrawArenaForeground(pcSlot, pc);
+    }
+}
+
 
 class Cauterize(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeRect(55, 10), (uint)IconID.Cauterize, AID.Cauterize, 5.2f)
 {

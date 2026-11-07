@@ -18,7 +18,6 @@ public enum AID : uint
 }
 
 class Douse(BossModule module) : Components.StandardAOEs(module, AID.Douse, 8);
-class Drench(BossModule module) : Components.Cleave(module, AID.Drench, new AOEShapeCone(13.45f, 60.Degrees()), (uint)OID.Oceanus);
 class PlasmaRelease(BossModule module) : Components.RaidwideCast(module, AID.PlasmaRelease);
 
 class A20Trash1States : StateMachineBuilder
@@ -27,7 +26,6 @@ class A20Trash1States : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<Douse>()
-            .ActivateOnEnter<Drench>()
             .ActivateOnEnter<PlasmaRelease>()
             .Raw.Update = () => A20Trash1.Pack.All(oid => module.Enemies(oid).All(e => e.IsDead));
     }
