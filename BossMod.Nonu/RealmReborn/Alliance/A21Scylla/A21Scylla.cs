@@ -45,6 +45,7 @@ public enum TetherID : uint
 }
 
 class AncientFlare(BossModule module) : Components.RaidwideCast(module, AID.AncientFlare);
+class Unholy(BossModule module) : Components.CastCounter(module, AID.Unholy);
 class Topple(BossModule module) : Components.StandardAOEs(module, AID.Topple, new AOEShapeCircle(6.75f));
 class Firewalker(BossModule module) : Components.Cleave(module, AID.Firewalker, new AOEShapeCone(8.75f, 45.Degrees()));
 class SearingChain(BossModule module) : Components.StandardAOEs(module, AID.SearingChain, new AOEShapeRect(61, 2));
@@ -153,16 +154,36 @@ class Staves(BossModule module) : Components.AddsPointless(module, (uint)OID.Sta
 
 class A21ScyllaStates : StateMachineBuilder
 {
+    private const float Late = 1000;
+
     public A21ScyllaStates(BossModule module) : base(module)
     {
-        TrivialPhase()
+        DeathPhase(0, Fight)
             .ActivateOnEnter<AncientFlare>()
+            .ActivateOnEnter<Unholy>()
             .ActivateOnEnter<Topple>()
             .ActivateOnEnter<Firewalker>()
             .ActivateOnEnter<SearingChain>()
             .ActivateOnEnter<InfiniteAnguish>()
             .ActivateOnEnter<Souls>()
             .ActivateOnEnter<Staves>();
+    }
+
+    private void Fight(uint id)
+    {
+        Unholy(id, 25.2f, 1);
+        Unholy(id + 0x10000, 19.4f, 2);
+        Unholy(id + 0x20000, 18.1f, 3);
+        Unholy(id + 0x30000, 15.3f, 4);
+        ComponentCondition<AncientFlare>(id + 0x40000, 21.1f, c => c.NumCasts >= 1, "Ancient flare", Late)
+            .SetHint(StateMachine.StateHint.Raidwide);
+        SimpleState(id + 0xFF0000, 10000, "???");
+    }
+
+    private void Unholy(uint id, float delay, int count)
+    {
+        ComponentCondition<Unholy>(id, delay, c => c.NumCasts >= count, "Raidwide", Late)
+            .SetHint(StateMachine.StateHint.Raidwide);
     }
 }
 
