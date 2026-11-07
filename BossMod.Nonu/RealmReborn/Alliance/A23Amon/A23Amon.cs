@@ -53,7 +53,7 @@ class BlizzagaForte(BossModule module) : Components.StandardAOEs(module, AID.Bli
 class Darkness(BossModule module) : Components.StandardAOEs(module, AID.Darkness, new AOEShapeCone(8, 60.Degrees()));
 class RanineComedy(BossModule module) : Components.CastCounter(module, AID.RanineComedy);
 
-class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID.CurtainCall, 60, false, 1, 1.2f)
+class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID.CurtainCall, 60, false, 0.5f, 1.5f)
 {
     public override IEnumerable<Actor> BlockerActors()
         => Module.Enemies(OID.IceCage).Where(c => !c.IsDead && !c.Position.InCircle(Module.PrimaryActor.Position, Module.PrimaryActor.HitboxRadius));
