@@ -4,7 +4,7 @@ public enum OID : uint
 {
     Boss = 0xBE0, // R4.000, x1
     Helper = 0x1B2, // R0.500, x5
-    IceCage = 0xBE1, // R1.800, spawns on players hit by midwinter tragedy
+    IceCage = 0xBE1, // R1.800, untargetable, spawns on players hit by midwinter tragedy, breaks with the freeze ~3s after curtain call
     DimensionalCompression = 0xBE2, // R1.000, tethered to a player, shrinks whatever it reaches
     ExperimentalByProduct33 = 0xBE3, // R1.000, casts the last song (raidwide silence) if not killed
     ExperimentalByProduct66 = 0xBE4, // R1.000, casts the last bout (raidwide pacification) if not killed
@@ -54,7 +54,10 @@ class Darkness(BossModule module) : Components.StandardAOEs(module, AID.Darkness
 
 class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID.CurtainCall, 60, false)
 {
-    public override IEnumerable<Actor> BlockerActors() => Module.Enemies(OID.IceCage).Where(c => !c.IsDead);
+    public override IEnumerable<Actor> BlockerActors()
+        => Module.Enemies(OID.IceCage).Where(c => !c.IsDead && !c.Position.InCircle(Module.PrimaryActor.Position, Module.PrimaryActor.HitboxRadius));
+
+    public override void Update() => IgnoredPlayers = Raid.WithSlot().WhereActor(p => p.FindStatus(SID.DeepFreeze) != null).Mask();
 
     public override void OnActorCreated(Actor actor)
     {
@@ -75,7 +78,7 @@ class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID
     }
 }
 
-class IceCageHint(BossModule module) : BossComponent(module)
+class IceCages(BossModule module) : Components.CastCounter(module, AID.MidwinterTragedy)
 {
     private BitMask _targets;
 
@@ -87,6 +90,7 @@ class IceCageHint(BossModule module) : BossComponent(module)
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
+        base.OnEventCast(caster, spell);
         if ((AID)spell.Action.ID == AID.MidwinterTragedy)
             _targets.Reset();
     }
@@ -97,11 +101,7 @@ class IceCageHint(BossModule module) : BossComponent(module)
             hints.Add("You will be frozen into an ice cage!", false);
     }
 
-    public override void AddGlobalHints(GlobalHints hints)
-    {
-        if (Module.Enemies(OID.IceCage).Any(c => !c.IsDead))
-            hints.Add("Keep ice cages alive for curtain call");
-    }
+    public override void DrawArenaForeground(int pcSlot, Actor pc) => Arena.Actors(Module.Enemies(OID.IceCage).Where(c => !c.IsDead), ArenaColor.Object, true);
 }
 
 class DimensionalCompression(BossModule module) : BossComponent(module)
@@ -163,7 +163,7 @@ class A23AmonStates : StateMachineBuilder
             .ActivateOnEnter<BlizzagaForte>()
             .ActivateOnEnter<Darkness>()
             .ActivateOnEnter<CurtainCall>()
-            .ActivateOnEnter<IceCageHint>()
+            .ActivateOnEnter<IceCages>()
             .ActivateOnEnter<DimensionalCompression>()
             .ActivateOnEnter<ByProducts>()
             .ActivateOnEnter<Adds>();
