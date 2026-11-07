@@ -37,6 +37,7 @@ public enum IconID : uint
 class KnucklePress(BossModule module) : Components.StandardAOEs(module, AID.KnucklePress, 10);
 class BurningRave(BossModule module) : Components.GroupedAOEs(module, [AID.BurningRaveBoss, AID.BurningRave], new AOEShapeCircle(8));
 class AuraCannon(BossModule module) : Components.StandardAOEs(module, AID.AuraCannon, new AOEShapeRect(64, 5));
+class AncientQuaga(BossModule module) : Components.CastCounter(module, AID.AncientQuaga);
 class Imperium(BossModule module) : Components.StackWithIcon(module, (uint)IconID.Imperium, AID.Imperium, 6, 7.1f, 4)
 {
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -176,16 +177,42 @@ class Circles(BossModule module) : Components.AddsMulti(module, [OID.StarfallCir
 
 class A24XandeStates : StateMachineBuilder
 {
+    private const float Late = 1000;
+
     public A24XandeStates(BossModule module) : base(module)
     {
-        TrivialPhase()
+        DeathPhase(0, Fight)
             .ActivateOnEnter<KnucklePress>()
+            .ActivateOnEnter<AncientQuaga>()
             .ActivateOnEnter<BurningRave>()
             .ActivateOnEnter<AuraCannon>()
             .ActivateOnEnter<Imperium>()
             .ActivateOnEnter<Levitation>()
             .ActivateOnEnter<AetherialMines>()
             .ActivateOnEnter<Circles>();
+    }
+
+    private void Fight(uint id)
+    {
+        ComponentCondition<AetherialMines>(id, 28.1f, c => c.Towers.Count > 0, "Mines", Late);
+        ComponentCondition<AetherialMines>(id + 0x10000, 9.8f, c => c.NumCasts >= 1, "Mines resolve", Late);
+        ComponentCondition<KnucklePress>(id + 0x20000, 1.2f, c => c.NumCasts >= 1, "Out", Late);
+        Downtime(id + 0x30000, 8.1f, 25.0f);
+        ComponentCondition<Imperium>(id + 0x40000, 8.1f, c => c.NumFinishedStacks >= 1, "Stacks", Late);
+        ComponentCondition<AncientQuaga>(id + 0x50000, 8.2f, c => c.NumCasts >= 1, "Quaga", Late);
+        ComponentCondition<AuraCannon>(id + 0x60000, 14.6f, c => c.NumCasts >= 1, "Line", Late);
+        Downtime(id + 0x70000, 5.0f, 28.8f);
+        ComponentCondition<Imperium>(id + 0x80000, 8.2f, c => c.NumFinishedStacks >= 4, "Stacks", Late);
+        ComponentCondition<AncientQuaga>(id + 0x90000, 4.1f, c => c.NumCasts >= 2, "Quaga", Late);
+        ComponentCondition<AuraCannon>(id + 0xA0000, 18.6f, c => c.NumCasts >= 2, "Line", Late);
+        SimpleState(id + 0xFF0000, 10000, "???");
+    }
+
+    private void Downtime(uint id, float delay, float duration)
+    {
+        Targetable(id, false, delay, "Disappear");
+        ComponentCondition<Circles>(id + 0x100, 7.5f, c => c.ActiveActors.Any(), "Circles", Late);
+        Targetable(id + 0x200, true, duration, "Return");
     }
 }
 
