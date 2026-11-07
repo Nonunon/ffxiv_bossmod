@@ -23,7 +23,7 @@ public enum AID : uint
     AutoAttackAdds = 872, // NumaNoShiki/DoroNoShiki->player, no cast, single-target
     FifthElement = 14334, // Boss->self, 4.0s cast, range 100 circle, raidwide
     InfirmSoul = 14333, // Boss->player, 5.0s cast, range 4 circle, tankbuster
-    SerpentAscending = 14300, // Boss->self, no cast, visual before spreads
+    SerpentAscending = 14300, // Boss->self, no cast, visual before spreads; TODO: wiki lists circles to stand in, kills end before they appear
     SerpentDescending = 14340, // Helper->player, 6.0s cast, range 5 circle spread
     Teleport = 14293, // Boss->location, no cast, single-target, sigil position
     OnmyoSigilVisual = 14338, // Boss->self, no cast, visual
@@ -185,6 +185,44 @@ class BlueBolt(BossModule module) : Components.SimpleLineStack(module, 2.5f, 80,
     }
 }
 
+// TODO: second hit seems to aim at the other healer, nothing in the logs shows it before it fires
+class ForbiddenArts(BossModule module) : Components.GenericWildCharge(module, 4, AID.ForbiddenArtsSecond, 80)
+{
+    private DateTime _hideAt;
+
+    public override void Update()
+    {
+        if (_hideAt != default && WorldState.CurrentTime >= _hideAt)
+        {
+            _hideAt = default;
+            Source = null;
+            Array.Fill(PlayerRoles, PlayerRole.Ignore);
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        switch ((AID)spell.Action.ID)
+        {
+            case AID.ForbiddenArtsTarget:
+                Source = caster;
+                Hits = 2;
+                Activation = WorldState.FutureTime(5.4f);
+                foreach (var (i, p) in Raid.WithSlot(true))
+                    PlayerRoles[i] = p.InstanceID == spell.MainTargetID ? PlayerRole.Target : PlayerRole.Share;
+                break;
+            case AID.ForbiddenArtsFirst:
+                Hits = 1;
+                Activation = WorldState.FutureTime(2.1f);
+                break;
+            case AID.ForbiddenArtsSecond:
+                ++NumCasts;
+                _hideAt = WorldState.FutureTime(1);
+                break;
+        }
+    }
+}
+
 class CoursingRiver(BossModule module) : Components.KnockbackFromCastTarget(module, AID.CoursingRiver, 25, shape: new AOEShapeRect(90, 45), kind: Components.Knockback.Kind.DirForward)
 {
     public override bool DestinationUnsafe(int slot, Actor actor, WPos pos) => !pos.InCircle(Arena.Center, T09Seiryu.IslandRadius);
@@ -220,7 +258,6 @@ class HundredTonzeSwing(BossModule module) : Components.StandardAOEs(module, AID
 class Kanabo(BossModule module) : Components.StandardAOEs(module, AID.Kanabo, new AOEShapeCone(40, 30.Degrees()));
 class YamaKagura(BossModule module) : Components.StandardAOEs(module, AID.YamaKagura, new AOEShapeRect(60, 3));
 class Adds(BossModule module) : Components.AddsMulti(module, [OID.DoroNoShiki, OID.NumaNoShiki], 1);
-class ForbiddenArts(BossModule module) : Components.SimpleLineStack(module, 4, 80, AID.ForbiddenArtsTarget, AID.ForbiddenArtsSecond, 5.4f);
 class Handprint(BossModule module) : Components.StandardAOEs(module, AID.HandprintFar, new AOEShapeCone(40, 90.Degrees()));
 class ForceOfNatureCenter(BossModule module) : Components.StandardAOEs(module, AID.ForceOfNatureCenter, 5);
 
