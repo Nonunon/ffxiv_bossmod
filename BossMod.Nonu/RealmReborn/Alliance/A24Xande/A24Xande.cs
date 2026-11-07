@@ -53,32 +53,13 @@ class Imperium(BossModule module) : Components.StackWithIcon(module, (uint)IconI
 class Levitation(BossModule module) : BossComponent(module)
 {
     private const float PadRadius = 5;
-    private const float LeaveRadius = 8;
     private readonly List<WPos> _pads = [];
     private DateTime _quagaAt;
-    private DateTime _leaveBy;
-
-    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
-    {
-        if (iconID == (uint)IconID.Imperium && _leaveBy != default)
-        {
-            _pads.Clear();
-            _leaveBy = default;
-        }
-    }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        switch ((AID)spell.Action.ID)
-        {
-            case AID.AncientQuaga:
-                _quagaAt = Module.CastFinishAt(spell);
-                break;
-            case AID.BurningRave or AID.BurningRaveBoss when _leaveBy != default:
-                _pads.Clear();
-                _leaveBy = default;
-                break;
-        }
+        if ((AID)spell.Action.ID == AID.AncientQuaga)
+            _quagaAt = Module.CastFinishAt(spell);
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -90,17 +71,8 @@ class Levitation(BossModule module) : BossComponent(module)
                 break;
             case AID.AncientQuaga:
                 _quagaAt = default;
-                _leaveBy = WorldState.FutureTime(6);
+                _pads.Clear();
                 break;
-        }
-    }
-
-    public override void Update()
-    {
-        if (_leaveBy != default && WorldState.CurrentTime > _leaveBy.AddSeconds(4))
-        {
-            _pads.Clear();
-            _leaveBy = default;
         }
     }
 
@@ -112,8 +84,6 @@ class Levitation(BossModule module) : BossComponent(module)
             hints.Add("Stand on a levitation pad!", !OnPad(actor));
         else if (_quagaAt != default && actor.FindStatus(SID.Levitation) == null)
             hints.Add("Stack for imperium to get levitation!");
-        else if (_leaveBy != default && _pads.Any(p => actor.Position.InCircle(p, LeaveRadius)))
-            hints.Add("Leave the pads, burning raves incoming!");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -121,12 +91,7 @@ class Levitation(BossModule module) : BossComponent(module)
         if (_pads.Count == 0)
             return;
 
-        if (_leaveBy != default)
-        {
-            foreach (var p in _pads)
-                hints.AddForbiddenZone(ShapeDistance.Circle(p, LeaveRadius), _leaveBy);
-        }
-        else if (_quagaAt != default)
+        if (_quagaAt != default)
         {
             hints.AddForbiddenZone(ShapeDistance.Intersection([.. _pads.Select(p => ShapeDistance.InvertedCircle(p, PadRadius))]), _quagaAt);
         }
@@ -139,12 +104,7 @@ class Levitation(BossModule module) : BossComponent(module)
     public override void DrawArenaBackground(int pcSlot, Actor pc)
     {
         foreach (var p in _pads)
-        {
-            if (_leaveBy != default)
-                Arena.ZoneCircle(p, LeaveRadius, ArenaColor.AOE);
-            else
-                Arena.ZoneCircle(p, PadRadius, ArenaColor.SafeFromAOE);
-        }
+            Arena.ZoneCircle(p, PadRadius, ArenaColor.SafeFromAOE);
     }
 }
 
