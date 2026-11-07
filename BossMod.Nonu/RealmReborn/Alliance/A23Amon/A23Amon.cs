@@ -51,6 +51,7 @@ public enum TetherID : uint
 class Coloratura(BossModule module) : Components.Cleave(module, AID.Coloratura, new AOEShapeCone(12, 60.Degrees()));
 class BlizzagaForte(BossModule module) : Components.StandardAOEs(module, AID.BlizzagaForte, new AOEShapeCircle(10));
 class Darkness(BossModule module) : Components.StandardAOEs(module, AID.Darkness, new AOEShapeCone(8, 60.Degrees()));
+class FiragaForte(BossModule module) : Components.CastCounter(module, AID.FiragaForte);
 
 class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, AID.CurtainCall, 60, false)
 {
@@ -156,10 +157,13 @@ class Adds(BossModule module) : Components.AddsMulti(module, [OID.Kichiknebik, O
 
 class A23AmonStates : StateMachineBuilder
 {
+    private const float Late = 1000;
+
     public A23AmonStates(BossModule module) : base(module)
     {
-        TrivialPhase()
+        DeathPhase(0, Fight)
             .ActivateOnEnter<Coloratura>()
+            .ActivateOnEnter<FiragaForte>()
             .ActivateOnEnter<BlizzagaForte>()
             .ActivateOnEnter<Darkness>()
             .ActivateOnEnter<CurtainCall>()
@@ -167,6 +171,24 @@ class A23AmonStates : StateMachineBuilder
             .ActivateOnEnter<DimensionalCompression>()
             .ActivateOnEnter<ByProducts>()
             .ActivateOnEnter<Adds>();
+    }
+
+    private void Fight(uint id)
+    {
+        FiragaForte(id, 25.6f, 1);
+        FiragaForte(id + 0x10000, 19.0f, 2);
+        ComponentCondition<IceCages>(id + 0x20000, 25.2f, c => c.NumCasts >= 1, "Cages", Late);
+        FiragaForte(id + 0x30000, 6.5f, 3);
+        ComponentCondition<IceCages>(id + 0x40000, 12.0f, c => c.NumCasts >= 2, "Cages", Late);
+        ComponentCondition<CurtainCall>(id + 0x50000, 20.2f, c => c.NumCasts >= 1, "Curtain call", Late);
+        FiragaForte(id + 0x60000, 6.8f, 4);
+        SimpleState(id + 0xFF0000, 10000, "???");
+    }
+
+    private void FiragaForte(uint id, float delay, int count)
+    {
+        ComponentCondition<FiragaForte>(id, delay, c => c.NumCasts >= count, "Raidwide", Late)
+            .SetHint(StateMachine.StateHint.Raidwide);
     }
 }
 
