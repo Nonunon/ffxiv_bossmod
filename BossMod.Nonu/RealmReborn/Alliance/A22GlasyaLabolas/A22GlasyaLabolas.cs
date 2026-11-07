@@ -30,6 +30,7 @@ public enum TetherID : uint
 class AstralPunch(BossModule module) : Components.Cleave(module, AID.AstralPunch, new AOEShapeCone(12, 45.Degrees()));
 class Aura(BossModule module) : Components.StandardAOEs(module, AID.Aura, 8);
 class VileUtterance(BossModule module) : Components.StandardAOEs(module, AID.VileUtterance, new AOEShapeCone(64, 22.5f.Degrees()));
+class BloodMoon(BossModule module) : Components.CastCounter(module, AID.BloodMoon);
 
 class ClockworkWrights(BossModule module) : BossComponent(module)
 {
@@ -67,13 +68,33 @@ class ClockworkWrights(BossModule module) : BossComponent(module)
 
 class A22GlasyaLabolasStates : StateMachineBuilder
 {
+    private const float Late = 1000;
+
     public A22GlasyaLabolasStates(BossModule module) : base(module)
     {
-        TrivialPhase()
+        DeathPhase(0, Fight)
             .ActivateOnEnter<AstralPunch>()
+            .ActivateOnEnter<BloodMoon>()
             .ActivateOnEnter<Aura>()
             .ActivateOnEnter<VileUtterance>()
             .ActivateOnEnter<ClockworkWrights>();
+    }
+
+    private void Fight(uint id)
+    {
+        ComponentCondition<Aura>(id, 25.4f, c => c.NumCasts >= 1, "Auras", Late);
+        ComponentCondition<VileUtterance>(id + 0x10000, 13.1f, c => c.NumCasts >= 1, "Cone", Late);
+        BloodMoon(id + 0x20000, 17.2f, 1);
+        ComponentCondition<Aura>(id + 0x30000, 8.2f, c => c.NumCasts >= 4, "Auras", Late);
+        ComponentCondition<VileUtterance>(id + 0x40000, 8.1f, c => c.NumCasts >= 2, "Cone", Late);
+        BloodMoon(id + 0x50000, 5.2f, 2);
+        SimpleState(id + 0xFF0000, 10000, "???");
+    }
+
+    private void BloodMoon(uint id, float delay, int count)
+    {
+        ComponentCondition<BloodMoon>(id, delay, c => c.NumCasts >= count, "Raidwide", Late)
+            .SetHint(StateMachine.StateHint.Raidwide);
     }
 }
 
