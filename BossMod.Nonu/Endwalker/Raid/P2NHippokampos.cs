@@ -136,6 +136,39 @@ class PredatorySight(BossModule module) : BossComponent(module)
 class Shockwave(BossModule module) : Components.KnockbackFromCastTarget(module, AID.Shockwave, 15);
 class SewageEruption(BossModule module) : Components.StandardAOEs(module, AID.SewageEruption, 6);
 class SewageDeluge(BossModule module) : Components.RaidwideCast(module, AID.SewageDeluge);
+
+class SewageDelugeArena(BossModule module) : BossComponent(module)
+{
+    private static readonly ArenaBoundsSquare _square = new(20);
+    private static readonly ArenaBoundsCustom _flooded = BuildFlooded();
+
+    private static ArenaBoundsCustom BuildFlooded()
+    {
+        static PolygonClipper.Operand rect(float x, float z, float hx, float hz) => new(CurveApprox.Rect(new WDir(x, z), new WDir(hx, 0), new WDir(0, hz)));
+        var pieces = new[]
+        {
+            rect(9.5f, 9.5f, 4.5f, 4.5f), rect(-9.5f, 9.5f, 4.5f, 4.5f), rect(9.5f, -9.5f, 4.5f, 4.5f), rect(-9.5f, -9.5f, 4.5f, 4.5f),
+            rect(0, 9.5f, 5.5f, 0.75f), rect(0, -9.5f, 5.5f, 0.75f), rect(9.5f, 0, 0.75f, 5.5f), rect(-9.5f, 0, 0.75f, 5.5f),
+        };
+        return new(20, _square.Clipper.UnionAll(pieces[0], pieces[1..]));
+    }
+
+    public override void OnMapEffect(byte index, uint state)
+    {
+        if (index != 0)
+            return;
+        switch (state)
+        {
+            case 0x00200010:
+                Arena.Bounds = _flooded;
+                break;
+            case 0x00080004:
+            case 0x00040004:
+                Arena.Bounds = _square;
+                break;
+        }
+    }
+}
 class MurkyDepths(BossModule module) : Components.RaidwideCast(module, AID.MurkyDepths);
 
 class P2NHippokamposStates : StateMachineBuilder
@@ -156,6 +189,7 @@ class P2NHippokamposStates : StateMachineBuilder
             .ActivateOnEnter<PredatorySight>()
             .ActivateOnEnter<Shockwave>()
             .ActivateOnEnter<SewageEruption>()
+            .ActivateOnEnter<SewageDelugeArena>()
             .ActivateOnEnter<MurkyDepths>();
     }
 }
