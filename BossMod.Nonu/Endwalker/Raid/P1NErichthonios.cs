@@ -153,10 +153,11 @@ class Intemperance(BossModule module) : Components.GenericAOEs(module)
     private DateTime _next;
     private DateTime _lastWave;
     private readonly bool?[] _casts = new bool?[4];
+    private bool _active;
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
-        if (_wave is 0 or >= 3)
+        if (!_active || _wave >= 3)
             yield break;
         bool? hot = actor.FindStatus(SID.HotSpell) != null ? true : actor.FindStatus(SID.ColdSpell) != null ? false : null;
         if (hot == null)
@@ -170,9 +171,9 @@ class Intemperance(BossModule module) : Components.GenericAOEs(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         base.AddHints(slot, actor, hints);
-        if (_wave is > 0 and < 3 && actor.FindStatus(SID.HotSpell) != null)
+        if (_active && _wave < 3 && actor.FindStatus(SID.HotSpell) != null)
             hints.Add("Go to a cold quadrant!", false);
-        else if (_wave is > 0 and < 3 && actor.FindStatus(SID.ColdSpell) != null)
+        else if (_active && _wave < 3 && actor.FindStatus(SID.ColdSpell) != null)
             hints.Add("Go to a hot quadrant!", false);
     }
 
@@ -197,13 +198,17 @@ class Intemperance(BossModule module) : Components.GenericAOEs(module)
         switch ((AID)spell.Action.ID)
         {
             case AID.Intemperance:
+                _active = true;
                 _wave = 0;
+                _next = Module.CastFinishAt(spell, 14.6f);
                 break;
+            case AID.HotSpellFirst:
+            case AID.ColdSpellFirst:
             case AID.HotSpell:
             case AID.ColdSpell:
                 _next = Module.CastFinishAt(spell);
                 var off = spell.LocXZ - Arena.Center;
-                _casts[off.X > 0 ? (off.Z > 0 ? 0 : 3) : (off.Z > 0 ? 1 : 2)] = (AID)spell.Action.ID == AID.HotSpell;
+                _casts[off.X > 0 ? (off.Z > 0 ? 0 : 3) : (off.Z > 0 ? 1 : 2)] = (AID)spell.Action.ID is AID.HotSpellFirst or AID.HotSpell;
                 break;
         }
     }
@@ -216,6 +221,7 @@ class Intemperance(BossModule module) : Components.GenericAOEs(module)
             Array.Fill(_casts, null);
             ++_wave;
             ++NumCasts;
+            _active = _wave < 3;
             _next = WorldState.FutureTime(9);
         }
     }
