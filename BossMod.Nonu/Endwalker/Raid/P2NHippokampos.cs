@@ -105,7 +105,7 @@ class SewageDelugeArena(BossModule module) : BossComponent(module)
         var pieces = new[]
         {
             rect(9.625f, 9.625f, 4.375f, 4.375f), rect(-9.625f, 9.625f, 4.375f, 4.375f), rect(9.625f, -9.625f, 4.375f, 4.375f), rect(-9.625f, -9.625f, 4.375f, 4.375f),
-            rect(0, 9.5f, 5.5f, 1), rect(0, -9.5f, 5.5f, 1), rect(9.5f, 0, 1, 5.5f), rect(-9.5f, 0, 1, 5.5f),
+            rect(0, 9.5f, 5.5f, 2), rect(0, -9.5f, 5.5f, 2), rect(9.5f, 0, 2, 5.5f), rect(-9.5f, 0, 2, 5.5f),
         };
         return new(20, _square.Clipper.UnionAll(pieces[0], pieces[1..]));
     }
