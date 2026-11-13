@@ -87,50 +87,7 @@ class CoherenceRay(BossModule module) : Components.SimpleLineStack(module, 3, 60
     }
 }
 
-class PredatorySight(BossModule module) : BossComponent(module)
-{
-    private const float Radius = 4;
-    private readonly List<Actor> _targets = [];
-    private DateTime _activation;
-
-    private bool HasPartner(Actor actor) => Raid.WithoutSlot().Exclude(actor).InRadius(actor.Position, Radius).Any();
-
-    public override void AddHints(int slot, Actor actor, TextHints hints)
-    {
-        if (_targets.Contains(actor) && !HasPartner(actor))
-            hints.Add("Pair up with someone!");
-    }
-
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        if (_targets.Contains(actor) && Raid.WithoutSlot().Exclude(actor).Closest(actor.Position) is { } partner)
-            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(partner.Position, Radius - 1.5f), _activation);
-    }
-
-    public override void DrawArenaForeground(int pcSlot, Actor pc)
-    {
-        if (!_targets.Contains(pc))
-            return;
-        Arena.AddCircle(pc.Position, Radius, HasPartner(pc) ? ArenaColor.Safe : ArenaColor.Danger);
-        foreach (var p in Raid.WithoutSlot().Exclude(pc))
-            Arena.Actor(p, p.Position.InCircle(pc.Position, Radius) ? ArenaColor.PlayerInteresting : ArenaColor.PlayerGeneric);
-    }
-
-    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
-    {
-        if ((AID)spell.Action.ID == AID.PredatorySightMark && WorldState.Actors.Find(spell.TargetID) is { } target)
-        {
-            _targets.Add(target);
-            _activation = Module.CastFinishAt(spell);
-        }
-    }
-
-    public override void OnEventCast(Actor caster, ActorCastEvent spell)
-    {
-        if ((AID)spell.Action.ID == AID.PredatorySightMark)
-            _targets.RemoveAll(t => t.InstanceID == spell.MainTargetID);
-    }
-}
+class PredatorySight(BossModule module) : Components.StackTogether(module, (uint)IconID.PredatorySight, 4.9f, 4);
 
 // TODO: distance is estimated, players near the landing spot ended 13-16y away
 class Shockwave(BossModule module) : Components.KnockbackFromCastTarget(module, AID.Shockwave, 15);
@@ -147,8 +104,8 @@ class SewageDelugeArena(BossModule module) : BossComponent(module)
         static PolygonClipper.Operand rect(float x, float z, float hx, float hz) => new(CurveApprox.Rect(new WDir(x, z), new WDir(hx, 0), new WDir(0, hz)));
         var pieces = new[]
         {
-            rect(9.5f, 9.5f, 4.5f, 4.5f), rect(-9.5f, 9.5f, 4.5f, 4.5f), rect(9.5f, -9.5f, 4.5f, 4.5f), rect(-9.5f, -9.5f, 4.5f, 4.5f),
-            rect(0, 9.5f, 5.5f, 0.75f), rect(0, -9.5f, 5.5f, 0.75f), rect(9.5f, 0, 0.75f, 5.5f), rect(-9.5f, 0, 0.75f, 5.5f),
+            rect(9.625f, 9.625f, 4.375f, 4.375f), rect(-9.625f, 9.625f, 4.375f, 4.375f), rect(9.625f, -9.625f, 4.375f, 4.375f), rect(-9.625f, -9.625f, 4.375f, 4.375f),
+            rect(0, 9.5f, 5.5f, 1), rect(0, -9.5f, 5.5f, 1), rect(9.5f, 0, 1, 5.5f), rect(-9.5f, 0, 1, 5.5f),
         };
         return new(20, _square.Clipper.UnionAll(pieces[0], pieces[1..]));
     }
