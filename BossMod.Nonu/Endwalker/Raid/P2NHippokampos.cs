@@ -4,54 +4,80 @@ public enum OID : uint
 {
     Boss = 0x3599, // R9.002, x1
     Helper = 0x233C, // R0.500, x24, Helper type
-    Hippokampos = 0x359A, // R8.002, x1
-    Hippokampos1 = 0x3869, // R9.002, x1
-    ActorFE36D = 0xFE36D, // R0.500, x1, EventNpc type
-    ActorFE36E = 0xFE36E, // R0.500, x1, EventNpc type
-    Exit = 0x1E850B, // R0.500, x1, EventObj type
+    CataractHead = 0x359A, // R8.002, x1
+    DissociatedHead = 0x3869, // R9.002, x1
     Actor1EA1A1 = 0x1EA1A1, // R2.000, x1, EventObj type
+    Exit = 0x1E850B, // R0.500, x1, EventObj type
 }
 
 public enum AID : uint
 {
     AutoAttack = 872, // Boss->player, no cast, single-target
     SewageDeluge = 26614, // Boss->self, 5.0s cast, range 60 circle
-    SpokenCataract = 26616, // Hippokampos->self, 7.0s cast, range 60 180-degree cone
-    SpokenCataract1 = 26617, // Hippokampos->self, 7.0s cast, range 60 180-degree cone
-    SpokenCataract2 = 26621, // Boss->self, 7.0s cast, range 100 width 15 rect
-    Coherence = 26624, // Hippokampos->location, no cast, range 60 circle
-    Coherence1 = 26625, // Boss->self, 5.0s cast, single-target
-    Coherence2 = 26626, // Boss->self, no cast, range 60 width 6 rect
-    Ability26627 = 26627, // Boss->self, no cast, single-target
+    SpokenCataractHead1 = 26616, // CataractHead->self, 7.0s cast, range 60 180-degree cone
+    SpokenCataractHead2 = 26617, // CataractHead->self, 7.0s cast, range 60 180-degree cone
+    SpokenCataractBoss = 26621, // Boss->self, 7.0s cast, range 100 width 15 rect
+    CoherenceFlare = 26624, // CataractHead->location, no cast, range 60 circle with falloff
+    Coherence = 26625, // Boss->self, 5.0s cast, single-target
+    CoherenceRay = 26626, // Boss->self, no cast, range 60 width 6 rect, shared
+    CoherenceEnd = 26627, // Boss->self, no cast, single-target
     Dissociation = 26628, // Boss->self, 4.0s cast, single-target
-    Ability26629 = 26629, // Boss->self, no cast, single-target
-    Dissociation1 = 26630, // Hippokampos1->self, 8.0s cast, range 50 width 20 rect
+    DissociationEnd = 26629, // Boss->self, no cast, single-target
+    DissociationAOE = 26630, // DissociatedHead->self, 8.0s cast, range 50 width 20 rect
     Shockwave = 26631, // Boss->location, 6.0s cast, range 60 circle
     TaintedFlood = 26632, // Boss->self, 3.0s cast, single-target
-    TaintedFlood1 = 26633, // Helper->players, 5.2s cast, range 6 circle
+    TaintedFloodAOE = 26633, // Helper->players, 5.2s cast, range 6 circle
     PredatorySight = 26634, // Boss->self, 4.0s cast, single-target
-    PredatorySight1 = 26635, // Helper->player, 5.0s cast, single-target
+    PredatorySightMark = 26635, // Helper->player, 5.0s cast, single-target
     DoubledImpact = 26638, // Boss->players, 5.0s cast, range 6 circle
     MurkyDepths = 26639, // Boss->self, 5.0s cast, range 60 circle
-    Ability26677 = 26677, // Boss->location, no cast, single-target
-    Ability27924 = 27924, // Helper->player, no cast, single-target
+    Teleport = 26677, // Boss->location, no cast, single-target
+    CoherenceRayTarget = 27924, // Helper->player, no cast, single-target
+}
+
+public enum SID : uint
+{
+    MarkOfEasyPrey = 2767, // Helper->player, extra=0x0
 }
 
 public enum IconID : uint
 {
-    Icon55 = 55, // player
-    Icon87 = 87, // player
-    Icon259 = 259, // player
-    Icon310 = 310, // player
+    PredatorySight = 55, // player
+    CoherenceFlare = 87, // player
+    DoubledImpact = 259, // player
+    TaintedFlood = 310, // player
+}
+
+class SpokenCataractHead1(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead1, new AOEShapeCone(60, 90.Degrees()));
+class SpokenCataractHead2(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead2, new AOEShapeCone(60, 90.Degrees()));
+class SpokenCataractBoss(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractBoss, new AOEShapeRect(100, 7.5f));
+class DissociationAOE(BossModule module) : Components.StandardAOEs(module, AID.DissociationAOE, new AOEShapeRect(50, 10));
+class TaintedFlood(BossModule module) : Components.SpreadFromCastTargets(module, AID.TaintedFloodAOE, 6);
+class DoubledImpact(BossModule module) : Components.CastSharedTankbuster(module, AID.DoubledImpact, 6);
+
+// TODO: flare radius is estimated from one cast, 21.5k at 8y against about 10k past 17y
+class CoherenceFlare(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.CoherenceFlare, AID.CoherenceFlare, 15, 5.8f);
+
+class CoherenceRay(BossModule module) : Components.SimpleLineStack(module, 3, 60, AID.CoherenceRayTarget, AID.CoherenceRay, 8.3f)
+{
+    private ulong _flareTarget;
+
+    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
+    {
+        if (iconID == (uint)IconID.CoherenceFlare)
+            _flareTarget = actor.InstanceID;
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if (spell.Action == TargetSelect && Raid.TryFindSlot(_flareTarget, out var slot))
+            PlayerRoles[slot] = PlayerRole.Avoid;
+    }
 }
 
 class SewageDeluge(BossModule module) : Components.RaidwideCast(module, AID.SewageDeluge);
-class SpokenCataract(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataract, new AOEShapeCone(60, 90.Degrees()));
-class SpokenCataract1(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataract1, new AOEShapeCone(60, 90.Degrees()));
-class SpokenCataract2(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataract2, new AOEShapeRect(100, 7.5f));
-class Dissociation1(BossModule module) : Components.StandardAOEs(module, AID.Dissociation1, new AOEShapeRect(50, 10));
 class Shockwave(BossModule module) : Components.RaidwideCast(module, AID.Shockwave);
-class PredatorySight1(BossModule module) : Components.SingleTargetCast(module, AID.PredatorySight1);
 class MurkyDepths(BossModule module) : Components.RaidwideCast(module, AID.MurkyDepths);
 
 class P2NHippokamposStates : StateMachineBuilder
@@ -59,13 +85,16 @@ class P2NHippokamposStates : StateMachineBuilder
     public P2NHippokamposStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<SpokenCataractHead1>()
+            .ActivateOnEnter<SpokenCataractHead2>()
+            .ActivateOnEnter<SpokenCataractBoss>()
+            .ActivateOnEnter<DissociationAOE>()
+            .ActivateOnEnter<TaintedFlood>()
+            .ActivateOnEnter<DoubledImpact>()
+            .ActivateOnEnter<CoherenceFlare>()
+            .ActivateOnEnter<CoherenceRay>()
             .ActivateOnEnter<SewageDeluge>()
-            .ActivateOnEnter<SpokenCataract>()
-            .ActivateOnEnter<SpokenCataract1>()
-            .ActivateOnEnter<SpokenCataract2>()
-            .ActivateOnEnter<Dissociation1>()
             .ActivateOnEnter<Shockwave>()
-            .ActivateOnEnter<PredatorySight1>()
             .ActivateOnEnter<MurkyDepths>();
     }
 }
