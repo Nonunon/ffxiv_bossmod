@@ -126,11 +126,11 @@ class Hatch : Components.CastCounter
             {
                 var src = closestOrb.Position;
                 var dir = m.Normalized();
-                hints.GoalZones.Add(p => p.InRect(src, dir * 1000, 1) ? 1 : 0);
+                hints.GoalZones.AddSimple(p => p.InRect(src, dir * 1000, 1), 1);
             }
 
             if (WaitForTwister[slot])
-                hints.AddForbiddenZone(Sdf.Continuous(ShapeDistance.DonutSector(myLink.Position, 3, 5, Module.PrimaryActor.AngleTo(myLink), 90.Degrees())).Inverted(), WorldState.FutureTime(leewaySeconds));
+                hints.AddForbiddenZone(ShapeDistance.DonutSector(myLink.Position, 3, 5, Module.PrimaryActor.AngleTo(myLink), 90.Degrees()).Inverted(), WorldState.FutureTime(leewaySeconds));
             else
                 hints.AddForbiddenZone(ShapeDistance.InvertedCircle(myLink.Position, 2), WorldState.FutureTime(leewaySeconds));
         }
@@ -179,7 +179,7 @@ class Hatch : Components.CastCounter
             var linkPos = link.Position;
             var linkDir = (linkPos - Arena.Center).Normalized();
             var adj = linkDir.OrthoR();
-            hints.GoalZones.Add(p => p.InRect(linkPos, adj * 100, 2) ? 10 : 0);
+            hints.GoalZones.AddSimple(p => p.InRect(linkPos, adj * 100, 2), 10);
         }
     }
 

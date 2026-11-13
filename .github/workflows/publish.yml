@@ -14,9 +14,10 @@ on:
 
 jobs:
   build:
-    uses: xanunderscore/DynamisPublishAction/.github/workflows/dynamis.yml
+    uses: xanunderscore/DynamisPublishAction/.github/workflows/dynamis.yml@master
     with:
       plugin_id: 30
+      build_command: publish
       project_file: BossMod/BossMod.csproj
       testing: ${{ inputs.testing || github.ref == 'refs/heads/testing' }}
     secrets:
