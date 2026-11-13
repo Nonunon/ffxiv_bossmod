@@ -1,4 +1,4 @@
-namespace BossMod.Dawntrail.Unreal.Un2Shinryu;
+﻿namespace BossMod.Dawntrail.Unreal.Un2Shinryu;
 
 class EarthenFury(BossModule module) : Components.RaidwideCast(module, AID.EarthenFury);
 class Hellfire(BossModule module) : Components.RaidwideCast(module, AID.Hellfire, "Raidwide, stand in water");
@@ -33,26 +33,12 @@ class EarthenFuryTile(BossModule module) : Components.GenericAOEs(module, AID.Ea
 
 class TidalWave(BossModule module) : Components.KnockbackFromCastTarget(module, AID.TidalWave, 35, kind: Kind.DirForward)
 {
-    public override bool DestinationUnsafe(int slot, Actor actor, WPos pos) => Module.FindComponent<ArenaChanges>()?.Intact(pos) == false;
-
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        if (Module.FindComponent<ArenaChanges>() is not { } arena)
-            return;
-        foreach (var c in Casters)
-        {
-            var activation = Module.CastFinishAt(c.CastInfo);
-            if (IsImmune(slot, activation))
-                continue;
-            var push = c.CastInfo!.Rotation.ToDirection() * Distance;
-            hints.AddForbiddenZone(Sdf.Discrete(p => !arena.Intact(p + push)), activation);
-        }
-    }
+    public override PointTest DestinationUnsafe(int slot, Actor actor) => Module.FindComponent<ArenaChanges>() is { } arena ? arena.Broken : PointTest.Never;
 }
 class SuperCyclone(BossModule module) : Components.RaidwideMultiHit(module, AID.AerialBlast, [AID.SuperCyclone], -6.1f, 2.1f, 3);
 class AerialBlast(BossModule module) : Components.Knockback(module, AID.AerialBlast)
 {
-    public override bool DestinationUnsafe(int slot, Actor actor, WPos pos) => Module.FindComponent<ArenaChanges>()?.Intact(pos) == false;
+    public override PointTest DestinationUnsafe(int slot, Actor actor) => Module.FindComponent<ArenaChanges>() is { } arena ? arena.Broken : PointTest.Never;
 
     private WPos _origin;
     private DateTime _activation;
@@ -91,7 +77,7 @@ class AerialBlast(BossModule module) : Components.Knockback(module, AID.AerialBl
         if (Module.FindComponent<ArenaChanges>() is not { } arena)
             return;
         var origin = _origin;
-        hints.AddForbiddenZone(Sdf.Discrete(p => !arena.Intact(AwayFromSource(p, origin, 15))), _positionDeadline);
+        hints.AddForbiddenZone(Sdf.Discrete(p => arena.Broken(AwayFromSource(p, origin, 15))), _positionDeadline);
     }
 }
 
@@ -215,24 +201,7 @@ class IcicleAdds(BossModule module) : Components.AddsMulti(module, [(uint)OID.Ic
 class Spikesicle(BossModule module) : Components.StandardAOEs(module, AID.Spikesicle, new AOEShapeRect(64.5f, 5), maxCasts: 3);
 class SpikesicleKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.Spikesicle, 10, maxCasts: 3, shape: new AOEShapeRect(64.5f, 5), kind: Kind.DirForward)
 {
-    public override bool DestinationUnsafe(int slot, Actor actor, WPos pos) => Module.FindComponent<ArenaChanges>()?.Intact(pos) == false;
-
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        if (Module.FindComponent<ArenaChanges>() is not { } arena)
-            return;
-        foreach (var c in Casters.Take(MaxCasts))
-        {
-            var activation = Module.CastFinishAt(c.CastInfo);
-            if (IsImmune(slot, activation))
-                continue;
-            var origin = c.Position;
-            var rot = c.CastInfo!.Rotation;
-            var push = rot.ToDirection() * Distance;
-            var shape = Shape!;
-            hints.AddForbiddenZone(Sdf.Discrete(p => shape.Check(p, origin, rot) && !arena.Intact(p + push)), activation);
-        }
-    }
+    public override PointTest DestinationUnsafe(int slot, Actor actor) => Module.FindComponent<ArenaChanges>() is { } arena ? arena.Broken : PointTest.Never;
 }
 
 class AkhMorn(BossModule module) : Components.CastSharedTankbuster(module, AID.AkhMorn, 4);
@@ -537,6 +506,14 @@ class ArenaChanges : BossComponent
     private static int TileIndex(WPos tile) => Math.Clamp((int)(tile.X / 20 + 1), 0, 2) + 3 * Math.Clamp((int)(tile.Z / 20 + 1), 0, 2);
 
     public bool Intact(WPos p) => Math.Abs(p.X) <= 30 && Math.Abs(p.Z) <= 30 && !_broken[TileIndex(Un2Shinryu.TileCenter(p))];
+
+    public VBool Broken(WVec p)
+    {
+        Span<int> res = stackalloc int[VBool.Count];
+        for (var i = 0; i < VBool.Count; ++i)
+            res[i] = Intact(new(p.X[i], p.Z[i])) ? 0 : -1;
+        return new(res);
+    }
 
     public ArenaChanges(BossModule module) : base(module)
     {
