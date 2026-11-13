@@ -14,6 +14,7 @@ public enum AID : uint
 {
     AutoAttack = 872, // Boss->player, no cast, single-target
     SewageDeluge = 26614, // Boss->self, 5.0s cast, range 60 circle
+    SpokenCataractHead3 = 26615, // CataractHead->self, 7.0s cast, range 60 180-degree cone
     SpokenCataractHead1 = 26616, // CataractHead->self, 7.0s cast, range 60 180-degree cone
     SpokenCataractHead2 = 26617, // CataractHead->self, 7.0s cast, range 60 180-degree cone
     SpokenCataractBoss = 26621, // Boss->self, 7.0s cast, range 100 width 15 rect
@@ -24,11 +25,13 @@ public enum AID : uint
     Dissociation = 26628, // Boss->self, 4.0s cast, single-target
     DissociationEnd = 26629, // Boss->self, no cast, single-target
     DissociationAOE = 26630, // DissociatedHead->self, 8.0s cast, range 50 width 20 rect
-    Shockwave = 26631, // Boss->location, 6.0s cast, range 60 circle
+    Shockwave = 26631, // Boss->location, 6.0s cast, range 60 circle, knockback
     TaintedFlood = 26632, // Boss->self, 3.0s cast, single-target
     TaintedFloodAOE = 26633, // Helper->players, 5.2s cast, range 6 circle
     PredatorySight = 26634, // Boss->self, 4.0s cast, single-target
-    PredatorySightMark = 26635, // Helper->player, 5.0s cast, single-target
+    PredatorySightMark = 26635, // Helper->player, 5.0s cast, single-target, pair stack
+    SewageEruptionVisual = 26636, // Boss->self, 4.0s cast, single-target
+    SewageEruption = 26637, // Helper->location, 4.0s cast, range 6 circle
     DoubledImpact = 26638, // Boss->players, 5.0s cast, range 6 circle
     MurkyDepths = 26639, // Boss->self, 5.0s cast, range 60 circle
     Teleport = 26677, // Boss->location, no cast, single-target
@@ -48,6 +51,7 @@ public enum IconID : uint
     TaintedFlood = 310, // player
 }
 
+class SpokenCataractHead3(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead3, new AOEShapeCone(60, 90.Degrees()));
 class SpokenCataractHead1(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead1, new AOEShapeCone(60, 90.Degrees()));
 class SpokenCataractHead2(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead2, new AOEShapeCone(60, 90.Degrees()));
 class SpokenCataractBoss(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractBoss, new AOEShapeRect(100, 7.5f));
@@ -56,7 +60,14 @@ class TaintedFlood(BossModule module) : Components.SpreadFromCastTargets(module,
 class DoubledImpact(BossModule module) : Components.CastSharedTankbuster(module, AID.DoubledImpact, 6);
 
 // TODO: flare radius is estimated from one cast, 21.5k at 8y against about 10k past 17y
-class CoherenceFlare(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.CoherenceFlare, AID.CoherenceFlare, 15, 5.8f);
+class CoherenceFlare(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.CoherenceFlare, AID.CoherenceFlare, 15, 5.8f)
+{
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.CoherenceFlare)
+            Spreads.Clear();
+    }
+}
 
 class CoherenceRay(BossModule module) : Components.SimpleLineStack(module, 3, 60, AID.CoherenceRayTarget, AID.CoherenceRay, 8.3f)
 {
@@ -76,8 +87,55 @@ class CoherenceRay(BossModule module) : Components.SimpleLineStack(module, 3, 60
     }
 }
 
+class PredatorySight(BossModule module) : BossComponent(module)
+{
+    private const float Radius = 4;
+    private readonly List<Actor> _targets = [];
+    private DateTime _activation;
+
+    private bool HasPartner(Actor actor) => Raid.WithoutSlot().Exclude(actor).InRadius(actor.Position, Radius).Any();
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (_targets.Contains(actor) && !HasPartner(actor))
+            hints.Add("Pair up with someone!");
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (_targets.Contains(actor) && Raid.WithoutSlot().Exclude(actor).Closest(actor.Position) is { } partner)
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(partner.Position, Radius - 1.5f), _activation);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (!_targets.Contains(pc))
+            return;
+        Arena.AddCircle(pc.Position, Radius, HasPartner(pc) ? ArenaColor.Safe : ArenaColor.Danger);
+        foreach (var p in Raid.WithoutSlot().Exclude(pc))
+            Arena.Actor(p, p.Position.InCircle(pc.Position, Radius) ? ArenaColor.PlayerInteresting : ArenaColor.PlayerGeneric);
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.PredatorySightMark && WorldState.Actors.Find(spell.TargetID) is { } target)
+        {
+            _targets.Add(target);
+            _activation = Module.CastFinishAt(spell);
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.PredatorySightMark)
+            _targets.RemoveAll(t => t.InstanceID == spell.MainTargetID);
+    }
+}
+
+// TODO: distance is estimated, players near the landing spot ended 13-16y away
+class Shockwave(BossModule module) : Components.KnockbackFromCastTarget(module, AID.Shockwave, 15);
+class SewageEruption(BossModule module) : Components.StandardAOEs(module, AID.SewageEruption, 6);
 class SewageDeluge(BossModule module) : Components.RaidwideCast(module, AID.SewageDeluge);
-class Shockwave(BossModule module) : Components.RaidwideCast(module, AID.Shockwave);
 class MurkyDepths(BossModule module) : Components.RaidwideCast(module, AID.MurkyDepths);
 
 class P2NHippokamposStates : StateMachineBuilder
@@ -85,6 +143,7 @@ class P2NHippokamposStates : StateMachineBuilder
     public P2NHippokamposStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<SpokenCataractHead3>()
             .ActivateOnEnter<SpokenCataractHead1>()
             .ActivateOnEnter<SpokenCataractHead2>()
             .ActivateOnEnter<SpokenCataractBoss>()
@@ -94,7 +153,9 @@ class P2NHippokamposStates : StateMachineBuilder
             .ActivateOnEnter<CoherenceFlare>()
             .ActivateOnEnter<CoherenceRay>()
             .ActivateOnEnter<SewageDeluge>()
+            .ActivateOnEnter<PredatorySight>()
             .ActivateOnEnter<Shockwave>()
+            .ActivateOnEnter<SewageEruption>()
             .ActivateOnEnter<MurkyDepths>();
     }
 }
