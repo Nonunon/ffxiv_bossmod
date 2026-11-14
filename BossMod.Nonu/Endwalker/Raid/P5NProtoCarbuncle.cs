@@ -144,18 +144,38 @@ class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module,
     }
 }
 
-// a stone turning poisonous gets a poison puddle about 5s later, which stays until the stone goes dormant again
+// a stone turning poisonous gets a poison puddle about 5s later, which grows from 5y to 12y and stays until the stone goes dormant again
 class PoisonStones(BossModule module) : Components.GenericAOEs(module)
 {
-    private static readonly AOEShapeCircle Shape = new(5);
+    private const float StartRadius = 5;
+    private const float MaxRadius = 12;
+    private const float GrowthPerSecond = 0.75f;
+    private static readonly AOEShapeCircle ShapeMax = new(MaxRadius);
     private readonly List<(Actor stone, DateTime activation)> _stones = [];
 
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _stones.Select(s => new AOEInstance(Shape, s.stone.Position, default, s.activation));
+    private float RadiusAt(DateTime activation, DateTime time) => Math.Clamp(StartRadius + GrowthPerSecond * (float)(time - activation).TotalSeconds, StartRadius, MaxRadius);
+    private DateTime FullSizeAt(DateTime activation) => activation.AddSeconds((MaxRadius - StartRadius) / GrowthPerSecond);
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+        => _stones.Select(s => new AOEInstance(new AOEShapeCircle(RadiusAt(s.activation, WorldState.CurrentTime)), s.stone.Position, default, s.activation));
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (_stones.Any(s => Shape.Check(actor.Position, s.stone.Position, default)))
-            hints.Add("Poison here soon, move away!");
+        if (_stones.Any(s => ShapeMax.Check(actor.Position, s.stone.Position, default)))
+            hints.Add("Poison spreads here, move away!");
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        foreach (var s in _stones)
+            hints.AddForbiddenZone(ShapeMax, s.stone.Position, default, FullSizeAt(s.activation));
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        foreach (var s in _stones)
+            Arena.AddCircle(s.stone.Position, MaxRadius, ArenaColor.Danger);
     }
 
     public override void OnActorEAnim(Actor actor, uint state)
