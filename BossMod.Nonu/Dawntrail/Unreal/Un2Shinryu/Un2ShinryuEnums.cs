@@ -1,4 +1,4 @@
-﻿namespace BossMod.Dawntrail.Unreal.Un2Shinryu;
+namespace BossMod.Dawntrail.Unreal.Un2Shinryu;
 
 public enum OID : uint
 {
