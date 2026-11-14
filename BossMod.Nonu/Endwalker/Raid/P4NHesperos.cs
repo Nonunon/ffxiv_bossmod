@@ -81,6 +81,42 @@ class Decollation(BossModule module) : Components.RaidwideCast(module, AID.Decol
 class HellSkewer(BossModule module) : Components.StandardAOEs(module, AID.HellSkewer, new AOEShapeRect(60, 3));
 class ShiftingStrikeSword(BossModule module) : Components.StandardAOEs(module, AID.ShiftingStrikeSword, new AOEShapeCone(60, 60.Degrees()));
 class ShiftingStrikeCloak(BossModule module) : Components.KnockbackFromCastTarget(module, AID.ShiftingStrikeCloak, 23);
+// the shift cast names the side the strike comes from; the arena already shows it, this only spells it out
+class ShiftDirection(BossModule module) : BossComponent(module)
+{
+    private string? _hint;
+
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (_hint != null)
+            hints.Add(_hint);
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        var hint = (AID)spell.Action.ID switch
+        {
+            AID.NortherlyShiftSword => "Sword cleave from the north",
+            AID.SoutherlyShiftSword => "Sword cleave from the south",
+            AID.EasterlyShiftSword => "Sword cleave from the east",
+            AID.WesterlyShiftSword => "Sword cleave from the west",
+            AID.NortherlyShiftCloak => "Knockback from the north",
+            AID.SoutherlyShiftCloak => "Knockback from the south",
+            AID.EasterlyShiftCloak => "Knockback from the east",
+            AID.WesterlyShiftCloak => "Knockback from the west",
+            _ => null
+        };
+        if (hint != null)
+            _hint = hint;
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID is AID.ShiftingStrikeSword or AID.ShiftingStrikeCloak)
+            _hint = null;
+    }
+}
+
 class AcidMekhane(BossModule module) : Components.SpreadFromCastTargets(module, AID.AcidMekhane, 5);
 class LavaMekhane(BossModule module) : Components.StackWithCastTargets(module, AID.LavaMekhane, 6);
 
@@ -270,6 +306,7 @@ class P4NHesperosStates : StateMachineBuilder
             .ActivateOnEnter<HellSkewer>()
             .ActivateOnEnter<ShiftingStrikeSword>()
             .ActivateOnEnter<ShiftingStrikeCloak>()
+            .ActivateOnEnter<ShiftDirection>()
             .ActivateOnEnter<AcidMekhane>()
             .ActivateOnEnter<LavaMekhane>()
             .ActivateOnEnter<PinaxTileCenters>()
