@@ -307,10 +307,12 @@ class Tiles(BossModule module) : BossComponent(module)
 }
 
 // the floor turns into an octagon (ENVC 8) with the adds; 10.6s later, with the ultima blade raidwide, the floor outside it
-// (corners on the axes and diagonals, about 12.5y out) starts bleeding anyone on it (ENVC 10), until just before palladion cut
+// (corners on the axes and diagonals, about 13.5y out) starts bleeding anyone on it (ENVC 10), until just before palladion cut
+// the zone is shown from 5s before the bleed, so the octagon doesn't sit on screen through the whole add spawn
 class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay inside the octagon!")
 {
-    private const float OctagonRadius = 12.5f;
+    private const float OctagonRadius = 13.5f;
+    private const float ShowLead = 5;
     private static readonly AOEShapeCustom _shape = BuildShape();
     private bool _active;
     private DateTime _activation;
@@ -325,7 +327,7 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
-        if (_active)
+        if (_active && WorldState.FutureTime(ShowLead) >= _activation)
             yield return new(_shape, Module.Center, default, _activation);
     }
 
@@ -339,13 +341,6 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
     {
         switch (index, state)
         {
-            case (8, 0x00020001): // octagon floor appears
-                if (!_active)
-                {
-                    _active = true;
-                    _activation = WorldState.FutureTime(10.6f);
-                }
-                break;
             case (10, 0x00020001): // outside starts bleeding
                 _active = true;
                 _activation = WorldState.CurrentTime;
