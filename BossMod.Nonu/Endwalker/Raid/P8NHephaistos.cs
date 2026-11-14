@@ -176,8 +176,9 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
             yield return new(s.pos, 20, s.activation);
     }
 
-    // the per-source hints don't chain knockbacks, so steer to the charge line first, then to the side of the first landing spot that's
-    // off the line: the charge pushes you 10y towards it and its 20y knockback throws you back across the middle instead of into a wall
+    // the base hints test each knockback from where you stand now; here each step is tested from where the previous ones put you.
+    // the lane is a goal on top of that: the charge line first, then the side of the first landing spot that's off the line (the charge
+    // pushes you 10y towards it and its 20y knockback throws you back across the middle instead of into a wall)
     private const float LaneHalfWidth = 1.5f;
 
     private (WPos mid, WDir normal, float side)? Lane()
@@ -193,7 +194,22 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        base.AddAIHints(slot, actor, assignment, hints);
+        var sources = Sources(slot, actor).Where(s => !IsImmune(slot, s.Activation)).ToList();
+        var isUnsafe = DestinationUnsafe(slot, actor) | DestinationOutOfBounds(slot, actor);
+        for (var k = 1; k <= sources.Count; ++k)
+        {
+            var steps = sources.Take(k).ToList();
+            hints.AddForbiddenZone(Sdf.Discrete(p =>
+            {
+                foreach (var s in steps)
+                {
+                    var moved = CalculateMovement(s, p);
+                    p = WVec.Select(moved.IsValid(), moved, p); // outside this source's shape: not moved
+                }
+                return isUnsafe(p);
+            }), steps[^1].Activation);
+        }
+
         if (Lane() is var (mid, normal, side))
         {
             var target = normal.Dot(mid.ToWDir()) + side * LaneHalfWidth;
