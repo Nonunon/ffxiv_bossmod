@@ -52,10 +52,11 @@ public enum IconID : uint
 }
 
 class ImmortalsObol(BossModule module) : Components.RaidwideCast(module, AID.ImmortalsObolAOE, "Raidwide + arena change");
-class HemitheossGlareIII(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOE, new AOEShapeDonut(5, 30));
-class HemitheossGlareIIILong(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOELong, new AOEShapeDonut(5, 30));
+class HemitheossGlareIII(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOE, new AOEShapeDonut(4, 30));
+class HemitheossGlareIIILong(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOELong, new AOEShapeDonut(4, 30));
 class BoughOfAttisFront(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisFrontAOE, 19);
 class BoughOfAttisSide(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisSideAOE, new AOEShapeRect(50, 12.5f));
+class BoughOfAttisSideKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.BoughOfAttisSideAOE, 60, shape: new AOEShapeRect(50, 12.5f), kind: Kind.DirForward);
 class BoughOfAttisBack(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisBackAOE, 25);
 class StaticMoon(BossModule module) : Components.StandardAOEs(module, AID.StaticMoon, 10);
 class StymphalianStrike(BossModule module) : Components.StandardAOEs(module, AID.StymphalianStrike, new AOEShapeRect(60, 4));
@@ -114,7 +115,8 @@ class Towers(BossModule module) : Components.GenericTowers(module, AID.Burst)
 }
 
 // immortal's obol swaps the big platform for three small ones (P7S layout), then bridges join them; the big one comes back later
-class Platforms(BossModule module) : BossComponent(module)
+// the part of the big platform that falls away is shown from the start of the cast
+class Platforms(BossModule module) : Components.GenericAOEs(module)
 {
     public const float SmallRadius = 10;
     public const float SmallOffset = 16.5f;
@@ -124,6 +126,16 @@ class Platforms(BossModule module) : BossComponent(module)
     private static readonly WDir[] _centers = [SmallOffset * new WDir(0, 1), SmallOffset * 120.Degrees().ToDirection(), SmallOffset * (-120).Degrees().ToDirection()];
     private static readonly ArenaBoundsCustom _small = Build(false);
     private static readonly ArenaBoundsCustom _bridged = Build(true);
+    private static readonly AOEShapeCustom _falling = new(_big.Clipper.Difference(new(CurveApprox.Circle(_big.Radius, 0.05f)), new(_small.Poly)));
+    private AOEInstance? _fallingAOE;
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => Utils.ZeroOrOne(_fallingAOE);
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.ImmortalsObolAOE)
+            _fallingAOE = new(_falling, Module.Center, default, Module.CastFinishAt(spell));
+    }
 
     private static ArenaBoundsCustom Build(bool bridges)
     {
@@ -144,6 +156,7 @@ class Platforms(BossModule module) : BossComponent(module)
         {
             case (0, 0x00200010): // big platform gone
                 Arena.Bounds = _small;
+                _fallingAOE = null;
                 break;
             case (0, 0x02000100): // big platform back
                 Arena.Bounds = _big;
@@ -166,6 +179,7 @@ class P7NAgdistisStates : StateMachineBuilder
             .ActivateOnEnter<HemitheossGlareIIILong>()
             .ActivateOnEnter<BoughOfAttisFront>()
             .ActivateOnEnter<BoughOfAttisSide>()
+            .ActivateOnEnter<BoughOfAttisSideKnockback>()
             .ActivateOnEnter<BoughOfAttisBack>()
             .ActivateOnEnter<StaticMoon>()
             .ActivateOnEnter<StymphalianStrike>()
