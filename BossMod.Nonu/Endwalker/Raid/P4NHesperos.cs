@@ -42,12 +42,17 @@ public enum AID : uint
     BurstTowerNoHealer = 27205, // Helper->self, 10.0s cast, range 4 circle
     BurstTowerNoDPS = 27206, // Helper->self, 10.0s cast, range 4 circle
     NortherlyShiftSword = 27210, // Boss->location, 7.0s cast, single-target
+    SoutherlyShiftSword = 27211, // Boss->self, 7.0s cast, single-target
     EasterlyShiftSword = 27212, // Boss->self, 7.0s cast, single-target
+    WesterlyShiftSword = 27213, // Boss->self, 7.0s cast, single-target
     ShiftingStrikeSword = 27214, // Helper->self, 8.5s cast, range 60 120-degree cone
     HellSkewer = 27215, // Boss->self, 5.0s cast, range 60 width 6 rect
     ElegantEvisceration = 27216, // Boss->players, 5.0s cast, range 5 circle
     Decollation = 27217, // Boss->self, 5.0s cast, range 40 circle
+    NortherlyShiftCloak = 28078, // Boss->location, 7.0s cast, single-target
     SoutherlyShiftCloak = 28079, // Boss->self, 7.0s cast, single-target
+    EasterlyShiftCloak = 28080, // Boss->self, 7.0s cast, single-target
+    WesterlyShiftCloak = 28081, // Boss->self, 7.0s cast, single-target
     ShiftingStrikeCloak = 28082, // Helper->self, 8.7s cast, range 60 circle, knockback
 }
 
@@ -79,10 +84,11 @@ class ShiftingStrikeCloak(BossModule module) : Components.KnockbackFromCastTarge
 class AcidMekhane(BossModule module) : Components.SpreadFromCastTargets(module, AID.AcidMekhane, 5);
 class LavaMekhane(BossModule module) : Components.StackWithCastTargets(module, AID.LavaMekhane, 6);
 
-// setting the scene places element tiles (env control index 5 + 4 * element + corner); the middle of a placed tile gives its element's debuff for as long as the tile is up
+// setting the scene places element tiles (env control index 5 + 4 * element + corner); the middle of a placed tile gives its element's debuff
+// until that tile's pinax resolves (state 0x02000001), even though the tile stays up a few seconds longer
 class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
 {
-    private static readonly AOEShapeCircle Shape = new(3);
+    private static readonly AOEShapeCircle Shape = new(2.5f);
     private readonly bool[] _placed = new bool[4]; // NE, SE, SW, NW
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
@@ -94,7 +100,7 @@ class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
 
     public override void OnMapEffect(byte index, uint state)
     {
-        if (index is >= 5 and <= 20 && state is 0x00020001 or 0x08000004)
+        if (index is >= 5 and <= 20 && state is 0x00020001 or 0x02000001 or 0x08000004)
             _placed[(index - 5) & 3] = state == 0x00020001;
     }
 
