@@ -79,6 +79,38 @@ class WickedStep1(BossModule module) : Components.StandardAOEs(module, AID.Wicke
 class WickedStep2(BossModule module) : Components.StandardAOEs(module, AID.WickedStep2, 4);
 class Ultima(BossModule module) : Components.RaidwideCast(module, AID.Ultima);
 
+// P10S layout: a 26x30 main platform, two 8x30 side platforms 25y out, and 2y-wide bridges to them (ENVC 2 right, 3 left)
+class Platforms(BossModule module) : BossComponent(module)
+{
+    private static readonly ArenaBoundsRect _rect = new(30, 22.5f);
+    private bool _left;
+    private bool _right;
+
+    private static PolygonClipper.Operand Rect(float x, float z, float hx, float hz) => new(CurveApprox.Rect(new WDir(x, z), new WDir(hx, 0), new WDir(0, hz)));
+
+    public static ArenaBoundsCustom Build(bool left, bool right)
+    {
+        // offsets are from the module centre (100, 92.5)
+        List<PolygonClipper.Operand> pieces = [Rect(0, 7.5f, 13, 15), Rect(25, -7.5f, 4, 15), Rect(-25, -7.5f, 4, 15)];
+        if (right)
+            pieces.Add(Rect(17, 0, 4.5f, 1));
+        if (left)
+            pieces.Add(Rect(-17, 0, 4.5f, 1));
+        return new(37, _rect.Clipper.UnionAll(pieces[0], [.. pieces.Skip(1)]));
+    }
+
+    public override void OnMapEffect(byte index, uint state)
+    {
+        if (index is not (2 or 3) || state is not (0x00020001 or 0x00080004))
+            return;
+        if (index == 2)
+            _right = state == 0x00020001;
+        else
+            _left = state == 0x00020001;
+        Arena.Bounds = Build(_left, _right);
+    }
+}
+
 class P10NPandaemoniumStates : StateMachineBuilder
 {
     public P10NPandaemoniumStates(BossModule module) : base(module)
@@ -95,9 +127,10 @@ class P10NPandaemoniumStates : StateMachineBuilder
             .ActivateOnEnter<PartedPlumes1>()
             .ActivateOnEnter<WickedStep1>()
             .ActivateOnEnter<WickedStep2>()
-            .ActivateOnEnter<Ultima>();
+            .ActivateOnEnter<Ultima>()
+            .ActivateOnEnter<Platforms>();
     }
 }
 
 [ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 938, NameID = 12354, PlanLevel = 90, Incomplete = true)]
-public class P10NPandaemonium(ModuleInit init) : BossModule(init, new(100, 92.5f), new ArenaBoundsRect(30, 22.5f));
+public class P10NPandaemonium(ModuleInit init) : BossModule(init, new(100, 92.5f), Platforms.Build(false, false));
