@@ -478,6 +478,78 @@ class TeraSlash(BossModule module) : Components.SingleTargetCast(module, AID.Ter
 class AtomicRay(BossModule module) : Components.StackWithIcon(module, (uint)IconID.AtomicRay, AID.AtomicRay, 6, 5.7f, 2, 2);
 class AetherialRay(BossModule module) : Components.StandardAOEs(module, AID.AetherialRay, new AOEShapeRect(100, 1.5f));
 class Wormwail(BossModule module) : Components.StandardAOEs(module, AID.Wormwail, new AOEShapeDonut(10, 50));
+
+// The puddle under Shinryu after Shatter inflicts a 10s Doom while you stand in it and drops it once you leave. Across 9 kills
+// players gained it at up to 13.8y from the center and stayed clear from 15y, hence 14. Wormwail's donut forces everyone in for a
+// moment, so it is only drawn as an outline then. During the Tidal Wave enrage the party jumps onto Shinryu's back from the pads
+// at (±20,0) and lands about (2,-8) some 13y up; anyone on the back is above the puddle, and anyone who falls off lands in it.
+class DoomPuddle : BossComponent
+{
+    private const float Radius = 14;
+    private static readonly WPos _back = new(2, -8);
+    private readonly HashSet<ulong> _activePads = [];
+
+    public DoomPuddle(BossModule module) : base(module)
+    {
+        KeepOnPhaseChange = true;
+    }
+
+    private bool OnBack(Actor actor) => actor.PosRot.Y > Module.PrimaryActor.PosRot.Y + 4;
+    private bool WormwailActive => Module.PrimaryActor.CastInfo?.IsSpell(AID.Wormwail) == true;
+    private IEnumerable<Actor> ActivePads() => Module.Enemies(OID.JumpPadWest).Concat(Module.Enemies(OID.JumpPadEast)).Where(p => _activePads.Contains(p.InstanceID));
+    private Actor? ClosestPad(Actor actor) => ActivePads().MinBy(p => (p.Position - actor.Position).LengthSq());
+
+    public override void OnActorEAnim(Actor actor, uint state)
+    {
+        if ((OID)actor.OID is OID.JumpPadWest or OID.JumpPadEast)
+        {
+            if (state == 0x00040008)
+                _activePads.Add(actor.InstanceID);
+            else if (state == 0x00010002)
+                _activePads.Remove(actor.InstanceID);
+        }
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (OnBack(actor))
+        {
+            if (_activePads.Count > 0)
+                hints.AddForbiddenZone(ShapeDistance.InvertedCircle(_back, 4)); // don't walk off the back
+            return;
+        }
+        if (!WormwailActive)
+            hints.AddForbiddenZone(ShapeDistance.Circle(Module.PrimaryActor.Position, Radius));
+        if (ClosestPad(actor) is { } pad)
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(pad.Position, 2));
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (OnBack(actor))
+            return;
+        if (actor.FindStatus(SID.Doom) != null)
+            hints.Add("Doom: get out of the puddle!");
+        if (ClosestPad(actor) != null)
+            hints.Add("Jump onto Shinryu's back from a pad!");
+    }
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        if (!OnBack(pc) && !WormwailActive)
+            Arena.ZoneCircle(Module.PrimaryActor.Position, Radius, ArenaColor.AOE);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (OnBack(pc))
+            return;
+        if (WormwailActive)
+            Arena.AddCircle(Module.PrimaryActor.Position, Radius, ArenaColor.Danger);
+        foreach (var pad in ActivePads())
+            Arena.AddCircle(pad.Position, 2, ArenaColor.Safe, 2);
+    }
+}
 class BenightingBreath(BossModule module) : Components.StandardAOEs(module, AID.BenightingBreath, new AOEShapeCone(50, 45.Degrees()));
 class Enrage(BossModule module) : Components.CastHint(module, AID.TidalWaveEnrage, "Enrage", true);
 
@@ -650,6 +722,7 @@ class Un2ShinryuStates : StateMachineBuilder
             .ActivateOnEnter<AtomicRay>()
             .ActivateOnEnter<AetherialRay>()
             .ActivateOnEnter<Wormwail>()
+            .ActivateOnEnter<DoomPuddle>()
             .ActivateOnEnter<BenightingBreath>()
             .ActivateOnEnter<IceStormP3>()
             .ActivateOnEnter<HypernovaP3>()

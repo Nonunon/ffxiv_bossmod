@@ -1,4 +1,4 @@
-namespace BossMod.Dawntrail.Unreal.Un2Shinryu;
+﻿namespace BossMod.Dawntrail.Unreal.Un2Shinryu;
 
 public enum OID : uint
 {
@@ -23,6 +23,9 @@ public enum OID : uint
     Platform = 0x1EA1A1, // R2.000, x10, EventObj type
     WaterSpout = 0x1E8536, // R2.000, x1, EventObj type
     WaterPuddle = 0x1E950D, // R0.500, x0 (spawn during fight), EventObj type
+    DoomPuddle = 0x1EA7E9, // R0.500, x0 (spawn during fight), EventObj type, under the boss after Shatter
+    JumpPadWest = 0x1EA7F1, // EventObj type, at (-20,0), active during the Tidal Wave enrage
+    JumpPadEast = 0x1EA7D9, // EventObj type, at (20,0), active during the Tidal Wave enrage
 }
 
 public enum AID : uint
@@ -119,6 +122,7 @@ public enum AID : uint
 public enum SID : uint
 {
     Paralysis = 17, // Helper->player, extra=0x0
+    Doom = 210, // none->player, extra=0x0, while standing in the puddle under the boss after Shatter
     BurningChains = 769, // none->player, extra=0x0
     Fetters = 822, // Boss->player, extra=0x0
     ThinIce = 911, // Helper->player, extra=0x0
