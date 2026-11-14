@@ -60,7 +60,8 @@ public enum SID : uint
 {
     Bind = 2518, // Helper->player, from silkspit or a web
     BindingSoulSnare = 3547, // none->player, stacks while held in a web
-    Heavy = 14, // crossing a web line
+    Heavy = 1595, // crossing a web line, which also breaks it
+    ConcentratedPoison = 3692, // standing off the platforms
 }
 
 public enum IconID : uint
@@ -83,7 +84,7 @@ class Cannonspawn(BossModule module) : Components.StandardAOEs(module, AID.Canno
 class PandaemoniacRay(BossModule module) : Components.StandardAOEs(module, AID.PandaemoniacRay, new AOEShapeRect(30, 25));
 class Touchdown(BossModule module) : Components.StandardAOEs(module, AID.TouchdownAOE, 20);
 class HarrowingHell(BossModule module) : Components.RaidwideCast(module, AID.HarrowingHell, "8x raidwide, then knockback");
-class HarrowingHellKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HarrowingHellKnockback, 25, kind: Kind.DirForward);
+class HarrowingHellKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HarrowingHellKnockback, 25, ignoreImmunes: true, kind: Kind.DirForward);
 class PandaemoniacMeltdown(BossModule module) : Components.SimpleLineStack(module, 3, 50, AID.PandaemoniacMeltdownTargetSelect, AID.PandaemoniacMeltdownAOE, 6.2f);
 class SoulGrasp(BossModule module) : Components.IconSharedTankbuster(module, (uint)IconID.SoulGrasp, AID.SoulGraspAOE, 4, 5.8f);
 class Ultima(BossModule module) : Components.RaidwideCast(module, AID.Ultima);
@@ -110,13 +111,22 @@ class PartedPlumesVoidzone(BossModule module) : Components.GenericAOEs(module, d
     }
 }
 
-// two tank towers; anyone else in them blows up, an empty one is a raidwide
+// two tank towers, 2.4s apart; anyone else in them blows up, an empty one is a raidwide
+// both get the earlier activation, so the AI treats them as one group and each tank keeps the tower it is in
 class WickedStep(BossModule module) : Components.GenericTowers(module)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if ((AID)spell.Action.ID is AID.WickedStepAOE1 or AID.WickedStepAOE2)
-            Towers.Add(new(caster.Position, 4, 1, 1, Raid.WithSlot().WhereActor(a => a.Role != Role.Tank).Mask(), Module.CastFinishAt(spell)));
+        {
+            var activation = Module.CastFinishAt(spell);
+            if (Towers.Count > 0 && Towers.Min(t => t.Activation) is var first && first < activation)
+                activation = first;
+            for (var i = 0; i < Towers.Count; ++i)
+                if (Towers[i].Activation > activation)
+                    Towers[i] = Towers[i] with { Activation = activation };
+            Towers.Add(new(caster.Position, 4, 1, 1, Raid.WithSlot().WhereActor(a => a.Role != Role.Tank).Mask(), activation));
+        }
     }
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
@@ -168,20 +178,55 @@ class Silkspit(BossModule module) : Components.UniformStackSpread(module, 0, 7)
     }
 }
 
-// web lines join bound points (and anyone bound next to them); running through one makes you heavy
+// web lines join bound points (and anyone bound next to them); running through one breaks it and makes the runner heavy
+// a web holding a player should be broken by someone else to free them; webs between points only just give heavy, so avoid those
 class WebLines(BossModule module) : Components.GenericAOEs(module, default, "Don't cross the web!")
 {
     private readonly List<(Actor from, Actor to)> _webs = [];
 
+    private static bool HoldsPlayer((Actor from, Actor to) w) => w.from.Type == ActorType.Player || w.to.Type == ActorType.Player;
+    private static WPos Mid((Actor from, Actor to) w) => w.from.Position + (w.to.Position - w.from.Position) * 0.5f;
+    private bool Held(Actor actor) => _webs.Any(w => HoldsPlayer(w) && (w.from == actor || w.to == actor));
+
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
-        foreach (var (from, to) in _webs)
+        foreach (var w in _webs)
         {
-            if (from == actor || to == actor)
+            if (HoldsPlayer(w) || w.from == actor || w.to == actor)
                 continue;
-            var dir = to.Position - from.Position;
-            yield return new(new AOEShapeRect(dir.Length(), 0.5f), from.Position, Angle.FromDirection(dir));
+            var dir = w.to.Position - w.from.Position;
+            yield return new(new AOEShapeRect(dir.Length(), 0.5f), w.from.Position, Angle.FromDirection(dir));
         }
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        base.AddHints(slot, actor, hints);
+        if (Held(actor))
+            hints.Add("Wait for someone to break your web", false);
+        else if (_webs.Where(HoldsPlayer).Select(w => w.from.Type == ActorType.Player ? w.from : w.to).FirstOrDefault() is { } held)
+            hints.Add($"Run through the web to free {held.Name}", false);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (Held(actor) || actor.FindStatus(SID.Heavy) != null)
+            return;
+        foreach (var w in _webs.Where(HoldsPlayer))
+        {
+            // only the nearest free player goes for it
+            var mid = Mid(w);
+            var nearest = Raid.WithoutSlot().Where(p => !p.IsDead && !Held(p) && p.FindStatus(SID.Heavy) == null).MinBy(p => (p.Position - mid).LengthSq());
+            if (nearest == actor)
+                hints.GoalZones.Add(AIHints.GoalProximity(mid, 30, 0.5f));
+        }
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        foreach (var w in _webs.Where(HoldsPlayer))
+            Arena.AddLine(w.from.Position, w.to.Position, ArenaColor.Safe, 2);
     }
 
     public override void OnTethered(Actor source, in ActorTetherInfo tether)
