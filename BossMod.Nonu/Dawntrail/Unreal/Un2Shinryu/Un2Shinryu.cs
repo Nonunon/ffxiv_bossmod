@@ -407,6 +407,68 @@ class CocoonMarker(BossModule module) : Components.UniformStackSpread(module, 0,
     public override void Update() => Spreads.RemoveAll(s => s.Activation.AddSeconds(1) < WorldState.CurrentTime);
 }
 class Touchdown(BossModule module) : Components.ProximityAOEs(module, AID.Touchdown, 14);
+
+// After the Dark Matter fall the party lands on the origin square; Touchdown then throws everyone north onto the platform at
+// (0,-80). All 8 players stood at (0,-28) in every kill; anywhere else the throw misses the platform.
+class TouchdownSpot(BossModule module) : BossComponent(module)
+{
+    private static readonly WPos _spot = new(0, -28);
+    public bool Done { get; private set; }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.Touchdown)
+            Done = true;
+    }
+
+    private bool Active => !Done && Arena.Center == default;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Active)
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(_spot, 2));
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (Active && !actor.Position.InCircle(_spot, 2))
+            hints.Add("Go to the north edge, Touchdown throws you onto the platform!");
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Active)
+            Arena.AddCircle(_spot, 2, ArenaColor.Safe, 2);
+    }
+}
+
+// Tail Spit knocks everyone 15y from the platform center; standing about 6.5y to the north-west lands on the start of the tail
+// at (-15,-97), the way up to the next arena.
+class TailSpitKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.TailSpit, 15)
+{
+    private static readonly WPos _spot = Un2Shinryu.P2Center + 6.5f * (-135f).Degrees().ToDirection();
+
+    public override PointTest DestinationUnsafe(int slot, Actor actor) => PointTest.Never;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Casters.Count > 0)
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(_spot, 1.5f), Module.CastFinishAt(Casters[0].CastInfo));
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (Casters.Count > 0 && !actor.Position.InCircle(_spot, 1.5f))
+            hints.Add("Stand north-west of the center, the knockback throws you onto the tail!");
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        base.DrawArenaForeground(pcSlot, pc);
+        if (Casters.Count > 0)
+            Arena.AddCircle(_spot, 1.5f, ArenaColor.Safe, 2);
+    }
+}
 class Fireball(BossModule module) : Components.StandardAOEs(module, AID.Fireball, 4);
 class BlazingTrail(BossModule module) : Components.StandardAOEs(module, AID.BlazingTrail, new AOEShapeRect(15, 5.5f));
 class SpikedTail(BossModule module) : Components.SingleTargetCast(module, AID.SpikedTail);
@@ -505,6 +567,8 @@ class Un2ShinryuStates : StateMachineBuilder
         CastEnd(id, 3, "Raidwide")
             .ActivateOnEnter<DarkMatter>()
             .ActivateOnEnter<Touchdown>()
+            .ActivateOnEnter<TouchdownSpot>()
+            .ActivateOnEnter<TailSpitKnockback>()
             .ActivateOnEnter<Cocoons>()
             .ActivateOnEnter<DragonAdds>()
             .ActivateOnEnter<MeteorImpact>()
