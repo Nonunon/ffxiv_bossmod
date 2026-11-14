@@ -306,12 +306,20 @@ class Tiles(BossModule module) : BossComponent(module)
     }
 }
 
-// during the palladion phase (ENVC 9 0x00200010 .. 0x00080004) the floor shrinks to a 6-8 sided shape Nonu saw; players stood
-// alive at up to 16.1y from the centre, so the outside of 16.5y is drawn as a warning ring until the real edge is measured
-class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay near the middle!")
+// during the palladion phase (ENVC 9 0x00200010) the floor outside an octagon (corners on the axes and diagonals, about 12.5y out)
+// bleeds anyone standing on it; it stops mattering once palladion cut starts, which takes the middle band instead
+class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay inside the octagon!")
 {
-    private static readonly AOEShapeDonut _shape = new(16.5f, 30);
+    private const float OctagonRadius = 12.5f;
+    private static readonly AOEShapeCustom _shape = BuildShape();
     private bool _active;
+
+    private static AOEShapeCustom BuildShape()
+    {
+        var square = new ArenaBoundsSquare(20);
+        var octagon = Enumerable.Range(0, 8).Select(i => OctagonRadius * (45f * i).Degrees().ToDirection());
+        return new(square.Clipper.Difference(new(square.ShapeSimplified), new(octagon)));
+    }
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
@@ -323,6 +331,12 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
     {
         if (index == 9 && state is 0x00200010 or 0x00080004)
             _active = state == 0x00200010;
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.PalladionCut)
+            _active = false;
     }
 }
 
