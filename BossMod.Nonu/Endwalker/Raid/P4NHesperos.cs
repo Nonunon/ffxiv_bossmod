@@ -79,92 +79,32 @@ class ShiftingStrikeCloak(BossModule module) : Components.KnockbackFromCastTarge
 class AcidMekhane(BossModule module) : Components.SpreadFromCastTargets(module, AID.AcidMekhane, 5);
 class LavaMekhane(BossModule module) : Components.StackWithCastTargets(module, AID.LavaMekhane, 6);
 
-// setting the scene places an element tile on some quadrants; env control index 5-20 = 5 + 4 * element + corner
-class PinaxTiles(BossModule module) : BossComponent(module)
+// setting the scene places element tiles (env control index 5 + 4 * element + corner); the middle of a placed tile gives its element's debuff for as long as the tile is up
+class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
 {
-    public enum Element { Lava, Levinstrike, Acid, Well }
-    public enum Progress { Pending, Active, Done }
-    public record class Tile(Element Element, Progress Progress);
+    private static readonly AOEShapeCircle Shape = new(3);
+    private readonly bool[] _placed = new bool[4]; // NE, SE, SW, NW
 
-    public readonly Tile?[] Tiles = new Tile?[4]; // NE, SE, SW, NW
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        for (int i = 0; i < _placed.Length; ++i)
+            if (_placed[i])
+                yield return new(Shape, TileCenter(i));
+    }
 
-    public WPos TileCenter(int corner) => Module.Center + 10 * (corner switch
+    public override void OnMapEffect(byte index, uint state)
+    {
+        if (index is >= 5 and <= 20 && state is 0x00020001 or 0x08000004)
+            _placed[(index - 5) & 3] = state == 0x00020001;
+    }
+
+    private WPos TileCenter(int corner) => Module.Center + 10 * (corner switch
     {
         0 => new WDir(+1, -1),
         1 => new WDir(+1, +1),
         2 => new WDir(-1, +1),
         _ => new WDir(-1, -1)
     });
-
-    private int CornerAt(WPos pos) => pos.X > Module.Center.X ? (pos.Z > Module.Center.Z ? 1 : 0) : (pos.Z > Module.Center.Z ? 2 : 3);
-
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
-    {
-        for (int i = 0; i < Tiles.Length; ++i)
-        {
-            if (Tiles[i] is not { } tile)
-                continue;
-            var color = tile.Progress == Progress.Done ? ArenaColor.PlayerGeneric : ArenaColor.Object;
-            var center = TileCenter(i);
-            Arena.AddRect(center, new(0, 1), 9.5f, 9.5f, 9.5f, color, tile.Progress == Progress.Active ? 3 : 1);
-            Arena.TextWorld(center + new WDir(0, 6), tile.Element.ToString(), color);
-        }
-    }
-
-    public override void OnMapEffect(byte index, uint state)
-    {
-        if (index is < 5 or > 20)
-            return;
-        var corner = (index - 5) & 3;
-        switch (state)
-        {
-            case 0x00020001:
-                Tiles[corner] = new((Element)((index - 5) >> 2), Progress.Pending);
-                break;
-            case 0x00800040:
-                Tiles[corner] = new((Element)((index - 5) >> 2), Progress.Active);
-                break;
-            case 0x08000004:
-                Tiles[corner] = null;
-                break;
-        }
-    }
-
-    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
-    {
-        Element? element = (AID)spell.Action.ID switch
-        {
-            AID.LavaPinax => Element.Lava,
-            AID.LevinstrikePinax => Element.Levinstrike,
-            AID.AcidPinax => Element.Acid,
-            AID.WellPinax => Element.Well,
-            _ => null
-        };
-        if (element != null)
-            Tiles[CornerAt(caster.Position)] = new(element.Value, Progress.Active);
-    }
-
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
-    {
-        if ((AID)spell.Action.ID is AID.LavaPinax or AID.LevinstrikePinax or AID.AcidPinax or AID.WellPinax && Tiles[CornerAt(caster.Position)] is { } tile)
-            Tiles[CornerAt(caster.Position)] = tile with { Progress = Progress.Done };
-    }
-}
-
-// the middle of a placed tile gives its element's debuff (pollen, dropsy) for as long as the tile is up
-class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
-{
-    private static readonly AOEShapeCircle Shape = new(3);
-    private readonly PinaxTiles? _tiles = module.FindComponent<PinaxTiles>();
-
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
-    {
-        if (_tiles == null)
-            yield break;
-        for (int i = 0; i < _tiles.Tiles.Length; ++i)
-            if (_tiles.Tiles[i] != null)
-                yield return new(Shape, _tiles.TileCenter(i));
-    }
 }
 
 // levinstrike damage falls off with distance from the center: about 18k at 18y, 11k at 20y, 5-7k in the corners
@@ -326,7 +266,6 @@ class P4NHesperosStates : StateMachineBuilder
             .ActivateOnEnter<ShiftingStrikeCloak>()
             .ActivateOnEnter<AcidMekhane>()
             .ActivateOnEnter<LavaMekhane>()
-            .ActivateOnEnter<PinaxTiles>()
             .ActivateOnEnter<PinaxTileCenters>()
             .ActivateOnEnter<LevinstrikeMekhane>()
             .ActivateOnEnter<WellMekhane>()
