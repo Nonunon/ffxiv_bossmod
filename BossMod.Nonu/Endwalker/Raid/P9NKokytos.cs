@@ -101,7 +101,48 @@ public enum TetherID : uint
 class GluttonysAugur(BossModule module) : Components.RaidwideCast(module, AID.GluttonysAugur);
 class GlobalSpell(BossModule module) : Components.RaidwideCast(module, AID.GlobalSpell);
 class BeastlyRoar(BossModule module) : Components.RaidwideCast(module, AID.BeastlyRoar);
+// the roar after charybdis also knocks everyone about 10y away from the boss, which can throw people into the charybdis puddles
+class BeastlyRoarKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.BeastlyRoar, 10);
 class GluttonousRampage(BossModule module) : Components.CastHint(module, AID.GluttonousRampage, "Tankbusters on tethered tanks");
+
+// the boss bites whoever holds a rampage tether, twice
+class GluttonousRampageTethers(BossModule module) : BossComponent(module)
+{
+    private readonly List<Actor> _targets = [];
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (_targets.Contains(actor))
+            hints.Add("Tankbuster on you (tether)!", false);
+    }
+
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (_targets.Count > 0)
+            hints.Add($"Tankbuster on {string.Join(", ", _targets.Select(t => t.Name))}");
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        foreach (var t in _targets)
+        {
+            Arena.AddLine(Module.PrimaryActor.Position, t.Position, ArenaColor.Danger);
+            Arena.AddCircle(t.Position, 3, ArenaColor.Danger);
+        }
+    }
+
+    public override void OnTethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (tether.ID is (uint)TetherID.RampageClose or (uint)TetherID.RampageFar && !_targets.Contains(source))
+            _targets.Add(source);
+    }
+
+    public override void OnUntethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (tether.ID is (uint)TetherID.RampageClose or (uint)TetherID.RampageFar)
+            _targets.Remove(source);
+    }
+}
 class FireIIISmall(BossModule module) : Components.SpreadFromCastTargets(module, AID.FireIIISmall, 6);
 class FireIIIBig(BossModule module) : Components.SpreadFromCastTargets(module, AID.FireIIIBig, 12);
 class BlizzardIIIIn(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIIn, new AOEShapeDonut(8, 30));
@@ -140,7 +181,11 @@ class Charybdis(BossModule module) : Components.SpreadFromCastTargets(module, AI
 class CharybdisPuddle(BossModule module) : Components.Voidzone(module, 6, (uint)OID.CharybdisPuddle);
 class BeastlyBile(BossModule module) : Components.SpreadFromCastTargets(module, AID.BeastlyBileAOE, 6);
 class PulverizingPounce(BossModule module) : Components.StackWithCastTargets(module, AID.PulverizingPounce, 6);
-class TouchdownMarker(BossModule module) : Components.ProximityAOEs(module, AID.TouchdownMarker, 15);
+// the 13s marker starts together with gluttonous rampage; it's only shown for its last 4s, after the first bite
+class TouchdownMarker(BossModule module) : Components.ProximityAOEs(module, AID.TouchdownMarker, 15)
+{
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => base.ActiveAOEs(slot, actor).Where(a => a.Activation <= WorldState.FutureTime(4));
+}
 class CometImpact(BossModule module) : Components.ProximityAOEs(module, AID.CometImpact, 15);
 class CometBurst(BossModule module) : Components.StandardAOEs(module, AID.CometBurst, 10);
 class FireSphereSmall(BossModule module) : Components.StandardAOEs(module, AID.FireSphereSmall, 8);
@@ -161,7 +206,7 @@ class ArchaicRockbreakerWaves(BossModule module) : Components.StandardAOEs(modul
     }
 }
 
-// in (12y circle) or out (8-20 donut) around the boss, then a 180-degree kick to its front or back about 2s later
+// in (12y circle) or out (8-20 donut) around the boss, then a 180-degree kick to its front or back about 2s later; both shown at once
 class Combination(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _in = new(12);
@@ -169,7 +214,7 @@ class Combination(BossModule module) : Components.GenericAOEs(module)
     private static readonly AOEShapeCone _kick = new(40, 90.Degrees());
     private readonly List<AOEInstance> _aoes = [];
 
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Take(1);
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes;
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
@@ -223,7 +268,9 @@ class P9NKokytosStates : StateMachineBuilder
             .ActivateOnEnter<GluttonysAugur>()
             .ActivateOnEnter<GlobalSpell>()
             .ActivateOnEnter<BeastlyRoar>()
+            .ActivateOnEnter<BeastlyRoarKnockback>()
             .ActivateOnEnter<GluttonousRampage>()
+            .ActivateOnEnter<GluttonousRampageTethers>()
             .ActivateOnEnter<FireIIISmall>()
             .ActivateOnEnter<FireIIIBig>()
             .ActivateOnEnter<BlizzardIIIIn>()
