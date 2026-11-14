@@ -65,7 +65,6 @@ public enum IconID : uint
 class RubyGlow(BossModule module) : Components.RaidwideCast(module, AID.RubyGlowAOE);
 class SearingRay(BossModule module) : Components.StandardAOEs(module, AID.SearingRay, new AOEShapeCone(45, 90.Degrees()));
 class TopazRay(BossModule module) : Components.StandardAOEs(module, AID.TopazRay, 4);
-class RubyReflectionQuadrant(BossModule module) : Components.StandardAOEs(module, AID.RubyReflectionQuadrant, new AOEShapeRect(15, 7.5f));
 class VenomDrops(BossModule module) : Components.StandardAOEs(module, AID.VenomDrops, 5);
 class VenomRain(BossModule module) : Components.SpreadFromCastTargets(module, AID.VenomRain, 5);
 class VenomPool(BossModule module) : Components.StackWithCastTargets(module, AID.VenomPool, 6);
@@ -117,40 +116,93 @@ class SearingRayCage(BossModule module) : Components.GenericAOEs(module, AID.Sea
     }
 }
 
-// a stone turning poisonous denies its whole quadrant until it goes dormant again
+// each cell of light hits twice more after the cast ends (0.3s and 0.7s later), so it stays until the second repeat
+class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module, AID.RubyReflectionQuadrant)
+{
+    private static readonly AOEShapeRect Shape = new(15, 7.5f);
+    private readonly List<(Actor caster, AOEInstance aoe, int repeats)> _aoes = [];
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Select(a => a.aoe);
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.RubyReflectionQuadrant)
+            _aoes.Add((caster, new(Shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell)), 0));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID != AID.RubyReflectionQuadrantRepeat)
+            return;
+        var index = _aoes.FindIndex(a => a.caster == caster);
+        if (index < 0)
+            return;
+        if (_aoes[index].repeats >= 1)
+            _aoes.RemoveAt(index);
+        else
+            _aoes[index] = _aoes[index] with { repeats = 1 };
+    }
+}
+
+// a stone turning poisonous gets a poison puddle about 5s later, which stays until the stone goes dormant again
 class PoisonStones(BossModule module) : Components.GenericAOEs(module)
 {
-    private static readonly AOEShapeRect Shape = new(7.5f, 7.5f, 7.5f);
-    private readonly List<(Actor stone, WPos center)> _stones = [];
+    private static readonly AOEShapeCircle Shape = new(5);
+    private readonly List<(Actor stone, DateTime activation)> _stones = [];
 
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _stones.Select(s => new AOEInstance(Shape, s.center));
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _stones.Select(s => new AOEInstance(Shape, s.stone.Position, default, s.activation));
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (_stones.Any(s => Shape.Check(actor.Position, s.stone.Position, default)))
+            hints.Add("Poison here soon, move away!");
+    }
 
     public override void OnActorEAnim(Actor actor, uint state)
     {
         if ((OID)actor.OID != OID.TopazStone)
             return;
-        if (state == 0x00100080)
-        {
-            var off = actor.Position - Module.Center;
-            _stones.Add((actor, Module.Center + new WDir(off.X < 0 ? -7.5f : 7.5f, off.Z < 0 ? -7.5f : 7.5f)));
-        }
+        if (state is 0x00100080 or 0x00100020)
+            _stones.Add((actor, WorldState.FutureTime(5)));
         else if (state == 0x00040200)
-        {
             _stones.RemoveAll(s => s.stone == actor);
-        }
     }
 }
 
 // a marker runs the boss's jump path first; then the boss jumps along it, each landing a 12y circle, and devours whoever the last one hit
+// the edge side of the first spot is out of reach of every later jump, so that's where to go once the first jump has landed
 class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.StarvingStampede)
 {
-    private static readonly AOEShapeCircle Shape = new(12);
+    private const float Radius = 12;
+    private static readonly AOEShapeCircle Shape = new(Radius);
     private readonly List<WPos> _path = [];
+    private int _numJumps;
+    private WPos? _safeSpot;
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
-        for (var i = 0; i < Math.Min(2, _path.Count); ++i)
-            yield return new(Shape, _path[i], default, default, i == 0 ? ArenaColor.Danger : 0, i == 0);
+        for (var i = _numJumps; i < Math.Min(_numJumps + 3, _path.Count); ++i)
+            yield return new(Shape, _path[i], default, default, i == _numJumps ? ArenaColor.Danger : 0, i == _numJumps);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        base.AddHints(slot, actor, hints);
+        if (_safeSpot != null)
+            hints.Add(_numJumps == 0 ? "Go to the first jump's spot after it lands" : "Stay at the first jump's spot", false);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (_safeSpot != null)
+            hints.GoalZones.Add(AIHints.GoalProximity(_safeSpot.Value, 30, 0.5f));
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (_safeSpot != null)
+            Arena.AddCircle(_safeSpot.Value, 1, ArenaColor.Safe);
     }
 
     public override void OnActorCreated(Actor actor)
@@ -159,6 +211,8 @@ class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.S
         {
             _path.Clear();
             _path.Add(actor.Position);
+            _numJumps = 0;
+            _safeSpot = null;
         }
     }
 
@@ -168,12 +222,39 @@ class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.S
         {
             case AID.StampedeMarkerMove:
                 _path.Add(spell.TargetXZ);
+                if (_path.Count >= Module.Enemies(OID.StampedeSpot).Count(s => !s.IsDestroyed))
+                    _safeSpot = FindSafeSpot();
                 break;
             case AID.StarvingStampede:
-                if (_path.Count > 0)
-                    _path.RemoveAt(0);
+                if (++_numJumps >= _path.Count)
+                {
+                    _path.Clear();
+                    _safeSpot = null;
+                }
                 break;
         }
+    }
+
+    // the point nearest the first spot that is inside the arena and out of reach of every later jump
+    private WPos? FindSafeSpot()
+    {
+        WPos? best = null;
+        var bestDist = float.MaxValue;
+        for (var x = -6f; x <= 6; x += 0.5f)
+        {
+            for (var z = -6f; z <= 6; z += 0.5f)
+            {
+                var p = _path[0] + new WDir(x, z);
+                var off = p - Module.Center;
+                var dist = (p - _path[0]).LengthSq();
+                if (dist < bestDist && Math.Abs(off.X) <= Module.Bounds.Radius - 1 && Math.Abs(off.Z) <= Module.Bounds.Radius - 1 && _path.Skip(1).All(s => !p.InCircle(s, Radius + 1)))
+                {
+                    best = p;
+                    bestDist = dist;
+                }
+            }
+        }
+        return best;
     }
 }
 
