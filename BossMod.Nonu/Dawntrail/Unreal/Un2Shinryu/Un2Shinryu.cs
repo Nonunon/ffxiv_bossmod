@@ -389,7 +389,8 @@ class Cocoons(BossModule module) : Components.AddsMulti(module, [(uint)OID.Cocoo
 class DragonAdds(BossModule module) : Components.AddsMulti(module, [(uint)OID.Ginryu, (uint)OID.Hakkinryu], 1);
 class MeteorImpact(BossModule module) : Components.ProximityAOEs(module, AID.MeteorImpact, 10);
 class MeteorImpactMarker(BossModule module) : Components.ProximityAOEs(module, AID.MeteorImpactMarker, 10);
-class CocoonMarker(BossModule module) : Components.UniformStackSpread(module, 0, 5, alwaysShowSpreads: true)
+// the marked player drops a cocoon meteor, the same 10y proximity hit as the other cocoons
+class CocoonMarker(BossModule module) : Components.UniformStackSpread(module, 0, 10, alwaysShowSpreads: true)
 {
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
     {
