@@ -89,14 +89,15 @@ class DikeAOE1(BossModule module) : Components.SingleTargetCast(module, AID.Dike
 class DikeAOE2(BossModule module) : Components.SingleTargetCast(module, AID.DikeAOE2);
 class DismissalRulingLight(BossModule module) : Components.KnockbackFromCastTarget(module, AID.DismissalRulingLightAOE, 11);
 class DismissalRulingDark(BossModule module) : Components.KnockbackFromCastTarget(module, AID.DismissalRulingDarkAOE, 11);
-class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 13);
+class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 10);
 class OuterDark(BossModule module) : Components.StandardAOEs(module, AID.OuterDark, new AOEShapeDonut(10, 50));
 class Lightburst(BossModule module) : Components.StandardAOEs(module, AID.LightburstAOE, 13);
 class DarkPerimeter(BossModule module) : Components.StandardAOEs(module, AID.DarkPerimeterAOE, new AOEShapeDonut(8, 50));
 class Dineis(BossModule module) : Components.StandardAOEs(module, AID.DineisAOE, 4);
 class BlindingLight(BossModule module) : Components.SpreadFromCastTargets(module, AID.BlindingLightAOE, 6);
 
-// lines from the boss or a clone: first a 16y-wide line, then either a 26y-wide one (light) or the two lanes beside it (dark); only the next group is shown
+// lines from the boss or a clone: first a 16y-wide line, then either a 26y-wide one (light) or the two lanes beside it (dark)
+// the wide one is shown together with the first line; the lanes only after it, since line + lanes would cover everything
 class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeRect _narrow = new(46, 8);
@@ -106,7 +107,7 @@ class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
         var deadline = _aoes.FirstOrDefault().Activation.AddSeconds(1);
-        return _aoes.TakeWhile(a => a.Activation < deadline);
+        return _aoes.Where(a => a.Activation < deadline || a.Shape == _wide);
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -190,31 +191,44 @@ class Styx(BossModule module) : Components.UniformStackSpread(module, 6, 0, 4)
     }
 }
 
-// discord turns into accord while standing on the matching half: light on the west (x < 100), dark on the east; leaving the half turns it back
+// discord turns into accord while standing in the matching sigil circle: light west around (90,100), dark east around (111.5,100), both about 8y;
+// leaving it turns it back, and katakrisis hits anyone in discord every few seconds
 class DarkAndLight(BossModule module) : BossComponent(module)
 {
-    private static readonly AOEShapeRect _half = new(20, 20);
-    private readonly int[] _side = new int[PartyState.MaxPartySize]; // -1 west (light), +1 east (dark), 0 none
+    private const float SigilRadius = 8;
+    private const float SafeRadius = 7;
+    private static readonly WPos _lightSigil = new(90, 100);
+    private static readonly WPos _darkSigil = new(111.5f, 100);
+    private readonly int[] _side = new int[PartyState.MaxPartySize]; // -1 light, +1 dark, 0 none
     private bool _active;
+
+    private static WPos Sigil(int side) => side < 0 ? _lightSigil : _darkSigil;
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (!_active || _side[slot] == 0)
             return;
-        var onSide = (actor.Position.X - Module.Center.X) * _side[slot] > 0;
-        hints.Add(_side[slot] < 0 ? "Stay on the west (light) half!" : "Stay on the east (dark) half!", !onSide);
+        var inside = actor.Position.InCircle(Sigil(_side[slot]), SafeRadius);
+        hints.Add(_side[slot] < 0 ? "Stand in the west (light) circle!" : "Stand in the east (dark) circle!", !inside);
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         if (_active && _side[slot] != 0)
-            hints.AddForbiddenZone(_half, Module.Center, (_side[slot] < 0 ? 90 : -90).Degrees());
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(Sigil(_side[slot]), SafeRadius));
     }
 
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
-        if (_active && _side[pcSlot] != 0)
-            _half.Draw(Arena, Module.Center, (_side[pcSlot] < 0 ? 90 : -90).Degrees(), ArenaColor.AOE);
+        if (!_active)
+            return;
+        if (_side[pcSlot] != 0)
+            Arena.AddCircle(Sigil(_side[pcSlot]), SigilRadius, ArenaColor.Safe, 2);
+        else
+        {
+            Arena.AddCircle(_lightSigil, SigilRadius, ArenaColor.Object);
+            Arena.AddCircle(_darkSigil, SigilRadius, ArenaColor.Object);
+        }
     }
 
     public override void OnStatusGain(Actor actor, in ActorStatus status)
