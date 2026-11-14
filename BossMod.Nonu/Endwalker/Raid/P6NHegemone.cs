@@ -51,7 +51,8 @@ public enum SID : uint
 public enum IconID : uint
 {
     DarkAshes = 101, // player
-    StropheRotate = 168, // Boss, cones turn +45 degrees per hit
+    StropheRotateCCW = 167, // Boss, cones turn -45 degrees per hit
+    StropheRotateCW = 168, // Boss, cones turn +45 degrees per hit
     Synergy = 343, // player
     Transmission = 354, // player
 }
@@ -232,6 +233,7 @@ class Transmission(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
+// the boss's own 31249 cast is missing on some pulls (the -45 one in the 2026-11-13 kill), so the sequences start from the helper casts
 class StropheIxou(BossModule module) : Components.GenericRotatingAOE(module)
 {
     private Angle _increment;
@@ -240,34 +242,53 @@ class StropheIxou(BossModule module) : Components.GenericRotatingAOE(module)
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
     {
-        // TODO: only the +45 icon has been seen; the other direction is taken from the first rotation
-        if (iconID == (uint)IconID.StropheRotate)
-            _increment = 45.Degrees();
+        _increment = (IconID)iconID switch
+        {
+            IconID.StropheRotateCCW => -45.Degrees(),
+            IconID.StropheRotateCW => 45.Degrees(),
+            _ => _increment
+        };
+        // the icon can land in the same frame just after the helper casts
+        foreach (ref var s in Sequences.AsSpan())
+            if (s.Increment == default)
+                s.Increment = _increment;
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if ((AID)spell.Action.ID == AID.StropheIxou)
-        {
-            Sequences.Add(new(_shape, caster.Position, spell.Rotation, _increment, Module.CastFinishAt(spell), 1.6f, 8));
-            Sequences.Add(new(_shape, caster.Position, spell.Rotation + 180.Degrees(), _increment, Module.CastFinishAt(spell), 1.6f, 8));
-        }
+        if ((AID)spell.Action.ID is AID.PathogenicCellsFirst or AID.ChelicVectorFirst)
+            Sequences.Add(new(_shape, spell.LocXZ, spell.Rotation, _increment, Module.CastFinishAt(spell), 1.6f, 8));
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID is AID.StropheIxou or AID.StropheIxouRest && Sequences.Count > 0)
+        // every hit carries the boss's facing, so the back cone is that plus 180
+        var rot = (AID)spell.Action.ID switch
         {
-            for (var i = Sequences.Count - 1; i >= 0; --i)
+            AID.PathogenicCellsFirst or AID.PathogenicCellsRest => spell.Rotation,
+            AID.ChelicVectorFirst or AID.ChelicVectorRest => spell.Rotation + 180.Degrees(),
+            _ => (Angle?)null
+        };
+        if (rot == null || Sequences.Count == 0)
+            return;
+
+        var index = 0;
+        var best = float.MaxValue;
+        for (var i = 0; i < Sequences.Count; ++i)
+        {
+            var d = MathF.Abs((Sequences[i].Rotation - rot.Value).Normalized().Rad);
+            if (d < best)
             {
-                ref var s = ref Sequences.AsSpan()[i];
-                var offset = i == 0 ? default : 180.Degrees();
-                if (s.Increment == default && (AID)spell.Action.ID == AID.StropheIxouRest)
-                    s.Increment = (spell.Rotation - s.Rotation + offset).Normalized();
-                s.Rotation = spell.Rotation + offset;
-                AdvanceSequence(i, WorldState.CurrentTime);
+                best = d;
+                index = i;
             }
         }
+        ref var s = ref Sequences.AsSpan()[index];
+        if (s.Increment == default && s.NumRemainingCasts < 8)
+            s.Increment = (rot.Value - s.Rotation + s.Increment).Normalized();
+        s.Rotation = rot.Value;
+        AdvanceSequence(index, WorldState.CurrentTime);
+        _increment = default;
     }
 }
 
