@@ -306,8 +306,8 @@ class Tiles(BossModule module) : BossComponent(module)
     }
 }
 
-// during the palladion phase (ENVC 9 0x00200010) the floor outside an octagon (corners on the axes and diagonals, about 12.5y out)
-// bleeds anyone standing on it; it stops mattering once palladion cut starts, which takes the middle band instead
+// the floor turns into an octagon (ENVC 8) with the adds; 10.6s later, with the ultima blade raidwide, the floor outside it
+// (corners on the axes and diagonals, about 12.5y out) starts bleeding anyone on it (ENVC 10), until just before palladion cut
 class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay inside the octagon!")
 {
     private const float OctagonRadius = 12.5f;
@@ -336,14 +336,28 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
 
     public override void OnMapEffect(byte index, uint state)
     {
-        if (index == 9 && state is 0x00200010 or 0x00080004)
+        switch (index, state)
         {
-            _active = state == 0x00200010;
-            _activation = WorldState.CurrentTime;
+            case (8, 0x00020001): // octagon floor appears
+                if (!_active)
+                {
+                    _active = true;
+                    _activation = WorldState.FutureTime(10.6f);
+                }
+                break;
+            case (10, 0x00020001): // outside starts bleeding
+                _active = true;
+                _activation = WorldState.CurrentTime;
+                break;
+            case (10, 0x00080004):
+            case (9, 0x00080004):
+            case (8, 0x00080004):
+                _active = false;
+                break;
         }
     }
 
-    // ultima blade has no cast bar: the boss action comes about 7.4s before the raidwide hit, which is when the octagon switches on
+    // ultima blade has no cast bar: the boss action comes about 7.4s before the raidwide hit, which is when the outside starts bleeding
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         if ((AID)spell.Action.ID == AID.UltimaBlade)
