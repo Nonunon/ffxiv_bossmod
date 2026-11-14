@@ -156,25 +156,51 @@ class ChthonicVent(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// centaur: a marker cast announces each landing spot in order, and the landing knocks everyone 20y away from it about 6.7s later
-class QuadrupedalImpact(BossModule module) : Components.Knockback(module, AID.QuadrupedalImpactAOE)
+// centaur: the boss charges along a line through the arena, knocking everyone 10y sideways away from it, then lands on each marked spot
+// in order (a marker cast announces each one), knocking everyone 20y away from it; all three are shown chained
+class BlazingFootfalls(BossModule module) : Components.Knockback(module)
 {
+    private static readonly AOEShapeRect _side = new(21, 21, 10.5f);
     private readonly List<(WPos pos, DateTime activation)> _spots = [];
+    private (WPos origin, Angle dir, DateTime activation)? _charge;
 
-    public override IEnumerable<Source> Sources(int slot, Actor actor) => _spots.Take(1).Select(s => new Source(s.pos, 20, s.activation));
+    public override IEnumerable<Source> Sources(int slot, Actor actor)
+    {
+        if (_charge is var (origin, dir, activation))
+        {
+            var mid = origin + (Module.Center - origin).Dot(dir.ToDirection()) * dir.ToDirection();
+            yield return new(mid + 10.5f * dir.ToDirection().OrthoL(), 10, activation, _side, dir, Kind.DirLeft);
+            yield return new(mid + 10.5f * dir.ToDirection().OrthoR(), 10, activation, _side, dir, Kind.DirRight);
+        }
+        foreach (var s in _spots)
+            yield return new(s.pos, 20, s.activation);
+    }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if ((AID)spell.Action.ID == AID.QuadrupedalImpactMarker)
-            _spots.Add((spell.LocXZ, Module.CastFinishAt(spell, 6.7f)));
+        switch ((AID)spell.Action.ID)
+        {
+            case AID.BlazingFootfalls:
+                _charge = (caster.Position, Angle.FromDirection(spell.LocXZ - caster.Position), Module.CastFinishAt(spell, 0.6f));
+                break;
+            case AID.QuadrupedalImpactMarker:
+                _spots.Add((spell.LocXZ, Module.CastFinishAt(spell, 6.7f)));
+                break;
+        }
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID == AID.QuadrupedalImpactAOE && _spots.Count > 0)
+        switch ((AID)spell.Action.ID)
         {
-            ++NumCasts;
-            _spots.RemoveAt(0);
+            case AID.Trailblaze:
+                _charge = null;
+                break;
+            case AID.QuadrupedalImpactAOE:
+                ++NumCasts;
+                if (_spots.Count > 0)
+                    _spots.RemoveAt(0);
+                break;
         }
     }
 }
@@ -197,7 +223,7 @@ class P8NHephaistosStates : StateMachineBuilder
             .ActivateOnEnter<GorgospitIllusory>()
             .ActivateOnEnter<GenesisOfFlame>()
             .ActivateOnEnter<Trailblaze>()
-            .ActivateOnEnter<QuadrupedalImpact>()
+            .ActivateOnEnter<BlazingFootfalls>()
             .ActivateOnEnter<RearingRampage>()
             .ActivateOnEnter<HemitheossFlare>()
             .ActivateOnEnter<Flameviper>();
