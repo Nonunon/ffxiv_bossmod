@@ -79,24 +79,91 @@ class ShiftingStrikeCloak(BossModule module) : Components.KnockbackFromCastTarge
 class AcidMekhane(BossModule module) : Components.SpreadFromCastTargets(module, AID.AcidMekhane, 5);
 class LavaMekhane(BossModule module) : Components.StackWithCastTargets(module, AID.LavaMekhane, 6);
 
-// each pinax lights one quadrant; the quadrant stays harmful after its cast ends, until all lit quadrants shut off together
-class PinaxQuadrants(BossModule module) : Components.GenericAOEs(module)
+// setting the scene places an element tile on some quadrants; env control index 5-20 = 5 + 4 * element + corner
+class PinaxTiles(BossModule module) : BossComponent(module)
 {
-    private static readonly AOEShapeRect Shape = new(10, 10, 10);
-    private readonly List<AOEInstance> _quadrants = [];
+    public enum Element { Lava, Levinstrike, Acid, Well }
+    public enum Progress { Pending, Active, Done }
+    public record class Tile(Element Element, Progress Progress);
 
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _quadrants;
+    public readonly Tile?[] Tiles = new Tile?[4]; // NE, SE, SW, NW
 
-    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    public WPos TileCenter(int corner) => Module.Center + 10 * (corner switch
     {
-        if ((AID)spell.Action.ID is AID.AcidPinax or AID.LavaPinax or AID.WellPinax or AID.LevinstrikePinax)
-            _quadrants.Add(new(Shape, caster.Position, default, Module.CastFinishAt(spell)));
+        0 => new WDir(+1, -1),
+        1 => new WDir(+1, +1),
+        2 => new WDir(-1, +1),
+        _ => new WDir(-1, -1)
+    });
+
+    private int CornerAt(WPos pos) => pos.X > Module.Center.X ? (pos.Z > Module.Center.Z ? 1 : 0) : (pos.Z > Module.Center.Z ? 2 : 3);
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        for (int i = 0; i < Tiles.Length; ++i)
+        {
+            if (Tiles[i] is not { } tile)
+                continue;
+            var color = tile.Progress == Progress.Done ? ArenaColor.PlayerGeneric : ArenaColor.Object;
+            var center = TileCenter(i);
+            Arena.AddRect(center, new(0, 1), 9.5f, 9.5f, 9.5f, color, tile.Progress == Progress.Active ? 3 : 1);
+            Arena.TextWorld(center + new WDir(0, 6), tile.Element.ToString(), color);
+        }
     }
 
     public override void OnMapEffect(byte index, uint state)
     {
-        if (state == 0x08000004)
-            _quadrants.Clear();
+        if (index is < 5 or > 20)
+            return;
+        var corner = (index - 5) & 3;
+        switch (state)
+        {
+            case 0x00020001:
+                Tiles[corner] = new((Element)((index - 5) >> 2), Progress.Pending);
+                break;
+            case 0x00800040:
+                Tiles[corner] = new((Element)((index - 5) >> 2), Progress.Active);
+                break;
+            case 0x08000004:
+                Tiles[corner] = null;
+                break;
+        }
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        Element? element = (AID)spell.Action.ID switch
+        {
+            AID.LavaPinax => Element.Lava,
+            AID.LevinstrikePinax => Element.Levinstrike,
+            AID.AcidPinax => Element.Acid,
+            AID.WellPinax => Element.Well,
+            _ => null
+        };
+        if (element != null)
+            Tiles[CornerAt(caster.Position)] = new(element.Value, Progress.Active);
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID is AID.LavaPinax or AID.LevinstrikePinax or AID.AcidPinax or AID.WellPinax && Tiles[CornerAt(caster.Position)] is { } tile)
+            Tiles[CornerAt(caster.Position)] = tile with { Progress = Progress.Done };
+    }
+}
+
+// the middle of a placed tile gives its element's debuff (pollen, dropsy) for as long as the tile is up
+class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeCircle Shape = new(3);
+    private readonly PinaxTiles? _tiles = module.FindComponent<PinaxTiles>();
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        if (_tiles == null)
+            yield break;
+        for (int i = 0; i < _tiles.Tiles.Length; ++i)
+            if (_tiles.Tiles[i] != null)
+                yield return new(Shape, _tiles.TileCenter(i));
     }
 }
 
@@ -259,7 +326,8 @@ class P4NHesperosStates : StateMachineBuilder
             .ActivateOnEnter<ShiftingStrikeCloak>()
             .ActivateOnEnter<AcidMekhane>()
             .ActivateOnEnter<LavaMekhane>()
-            .ActivateOnEnter<PinaxQuadrants>()
+            .ActivateOnEnter<PinaxTiles>()
+            .ActivateOnEnter<PinaxTileCenters>()
             .ActivateOnEnter<LevinstrikeMekhane>()
             .ActivateOnEnter<WellMekhane>()
             .ActivateOnEnter<BeloneCoils>()
