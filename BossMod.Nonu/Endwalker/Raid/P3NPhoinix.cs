@@ -125,6 +125,7 @@ class SunbirdSpread(BossModule module) : BossComponent(module)
 }
 
 // four marked players are hit in order; each hit kills the darkened fires inside it, and any left alive when darkened blaze finishes deal heavy damage
+// every pending circle is also a spread, so all of them are drawn for everyone until they go off
 class BrightenedFire(BossModule module) : Components.CastCounter(module, AID.BrightenedFireAOE)
 {
     private const float Radius = 7;
@@ -134,7 +135,6 @@ class BrightenedFire(BossModule module) : Components.CastCounter(module, AID.Bri
     private IEnumerable<Actor> LiveFires => _fires.Where(f => !f.IsDead);
     private bool Pending(int slot) => _order[slot] > NumCasts;
     private int NumHit(WPos pos) => LiveFires.Count(f => f.Position.InCircle(pos, Radius + f.HitboxRadius));
-    private Actor? NextTarget => Raid.WithSlot().FirstOrDefault(ip => _order[ip.Item1] == NumCasts + 1).Item2;
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
@@ -146,7 +146,7 @@ class BrightenedFire(BossModule module) : Components.CastCounter(module, AID.Bri
             else if (hit == 1 && LiveFires.Count() > 1)
                 hints.Add($"Fire #{_order[slot]}: stand between two darkened fires!", false);
         }
-        if (NextTarget is var next && next != null && next != actor && actor.Position.InCircle(next.Position, Radius))
+        if (Raid.WithSlot().Exclude(actor).Any(ip => Pending(ip.Item1) && actor.Position.InCircle(ip.Item2.Position, Radius)))
             hints.Add("GTFO from brightened fire!");
     }
 
@@ -154,8 +154,9 @@ class BrightenedFire(BossModule module) : Components.CastCounter(module, AID.Bri
     {
         if (Pending(slot))
             hints.GoalZones.Add(AIHints.GoalAOECircle([.. LiveFires.Select(f => (f.Position, f.HitboxRadius))], Radius));
-        if (NextTarget is var next && next != null && next != actor)
-            hints.AddForbiddenZone(ShapeDistance.Circle(next.Position, Radius));
+        foreach (var (i, p) in Raid.WithSlot().Exclude(actor))
+            if (Pending(i))
+                hints.AddForbiddenZone(ShapeDistance.Circle(p.Position, Radius));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
@@ -165,8 +166,9 @@ class BrightenedFire(BossModule module) : Components.CastCounter(module, AID.Bri
         Arena.Actors(LiveFires, ArenaColor.Enemy);
         if (Pending(pcSlot))
             Arena.AddCircle(pc.Position, Radius, NumHit(pc.Position) > 0 ? ArenaColor.Safe : ArenaColor.Danger);
-        if (NextTarget is var next && next != null && next != pc)
-            Arena.AddCircle(next.Position, Radius, ArenaColor.Danger);
+        foreach (var (i, p) in Raid.WithSlot().Exclude(pc))
+            if (Pending(i))
+                Arena.AddCircle(p.Position, Radius, ArenaColor.Danger);
     }
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
