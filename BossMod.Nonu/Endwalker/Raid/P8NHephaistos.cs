@@ -160,7 +160,7 @@ class ChthonicVent(BossModule module) : Components.GenericAOEs(module)
 // in order (a marker cast announces each one), knocking everyone 20y away from it; all three are shown chained
 class BlazingFootfalls(BossModule module) : Components.Knockback(module)
 {
-    private static readonly AOEShapeRect _side = new(21, 21, 10.5f);
+    private static readonly AOEShapeRect _side = new(21, 10.5f, 21);
     private readonly List<(WPos pos, DateTime activation)> _spots = [];
     private (WPos origin, Angle dir, DateTime activation)? _charge;
 
