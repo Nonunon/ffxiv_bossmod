@@ -301,6 +301,26 @@ class Tiles(BossModule module) : BossComponent(module)
     }
 }
 
+// during the palladion phase (ENVC 9 0x00200010 .. 0x00080004) the floor shrinks to a 6-8 sided shape Nonu saw; nobody went
+// past 13y from the centre in the kill, so the outside of that is drawn as a warning ring until the real edge is measured
+class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay near the middle!")
+{
+    private static readonly AOEShapeDonut _shape = new(13, 30);
+    private bool _active;
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        if (_active)
+            yield return new(_shape, Module.Center);
+    }
+
+    public override void OnMapEffect(byte index, uint state)
+    {
+        if (index == 9 && state is 0x00200010 or 0x00080004)
+            _active = state == 0x00200010;
+    }
+}
+
 class P12NAthenaStates : StateMachineBuilder
 {
     public P12NAthenaStates(BossModule module) : base(module)
@@ -321,7 +341,8 @@ class P12NAthenaStates : StateMachineBuilder
             .ActivateOnEnter<Superchain>()
             .ActivateOnEnter<PalladionJumps>()
             .ActivateOnEnter<UnnaturalEnchainment>()
-            .ActivateOnEnter<Tiles>();
+            .ActivateOnEnter<Tiles>()
+            .ActivateOnEnter<PalladionArenaEdge>();
     }
 }
 
