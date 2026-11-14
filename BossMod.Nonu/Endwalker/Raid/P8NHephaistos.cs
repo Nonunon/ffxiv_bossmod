@@ -176,6 +176,38 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
             yield return new(s.pos, 20, s.activation);
     }
 
+    // the per-source hints don't chain knockbacks, so steer to the charge line first, then to the side of the first landing spot that's
+    // off the line: the charge pushes you 10y towards it and its 20y knockback throws you back across the middle instead of into a wall
+    private const float LaneHalfWidth = 1.5f;
+
+    private (WPos mid, WDir normal, float side)? Lane()
+    {
+        if (_charge is not var (origin, dir, _))
+            return null;
+        var d = dir.ToDirection();
+        var mid = origin + (Module.Center - origin).Dot(d) * d;
+        var normal = d.OrthoL();
+        var side = _spots.Select(s => normal.Dot(s.pos - mid)).FirstOrDefault(off => Math.Abs(off) > 2);
+        return (mid, normal, Math.Sign(side));
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (Lane() is var (mid, normal, side))
+        {
+            var target = normal.Dot(mid.ToWDir()) + side * LaneHalfWidth;
+            hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - VV.Abs(normal.Dot(p) - new VFloat(target)) / LaneHalfWidth) * 10);
+        }
+    }
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        base.DrawArenaBackground(pcSlot, pc);
+        if (Lane() is var (mid, normal, side) && _charge is var (_, dir, _))
+            Arena.ZoneRect(mid + side * LaneHalfWidth * normal, dir, 21, 21, LaneHalfWidth, ArenaColor.SafeFromAOE);
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         switch ((AID)spell.Action.ID)
