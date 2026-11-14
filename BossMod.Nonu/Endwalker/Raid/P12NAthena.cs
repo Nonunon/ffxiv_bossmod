@@ -313,6 +313,7 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
     private const float OctagonRadius = 12.5f;
     private static readonly AOEShapeCustom _shape = BuildShape();
     private bool _active;
+    private DateTime _activation;
 
     private static AOEShapeCustom BuildShape()
     {
@@ -324,13 +325,32 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
         if (_active)
-            yield return new(_shape, Module.Center);
+            yield return new(_shape, Module.Center, default, _activation);
+    }
+
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (_active && _activation > WorldState.CurrentTime)
+            hints.Add("Raidwide, then the floor outside the octagon bleeds");
     }
 
     public override void OnMapEffect(byte index, uint state)
     {
         if (index == 9 && state is 0x00200010 or 0x00080004)
+        {
             _active = state == 0x00200010;
+            _activation = WorldState.CurrentTime;
+        }
+    }
+
+    // ultima blade has no cast bar: the boss action comes about 7.4s before the raidwide hit, which is when the octagon switches on
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.UltimaBlade)
+        {
+            _active = true;
+            _activation = WorldState.FutureTime(7.4f);
+        }
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
