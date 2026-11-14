@@ -189,6 +189,7 @@ class Superchain(BossModule module) : Components.GenericAOEs(module)
 }
 
 // boss jumps onto each marked player in order: a 4y-wide charge from her last spot plus a 6y circle on the target
+// the number of jumps varies (8 and 6 seen), so it ends on palladion's end cast rather than on a count
 class PalladionJumps(BossModule module) : Components.GenericAOEs(module, default, "GTFO from the charge!")
 {
     private static readonly AOEShapeCircle _landing = new(6);
@@ -235,14 +236,18 @@ class PalladionJumps(BossModule module) : Components.GenericAOEs(module, default
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID == AID.PalladionJump)
+        switch ((AID)spell.Action.ID)
         {
-            ++NumCasts;
-            _from = spell.TargetXZ;
-            if (_targets.Count > 0)
-                _targets.RemoveAt(0);
-            if (NumCasts % 8 == 0)
+            case AID.PalladionJump:
+                ++NumCasts;
+                _from = spell.TargetXZ;
+                if (_targets.Count > 0)
+                    _targets.RemoveAt(0);
+                break;
+            case AID.PalladionEnd:
                 _active = false;
+                _targets.Clear();
+                break;
         }
     }
 }
@@ -301,11 +306,11 @@ class Tiles(BossModule module) : BossComponent(module)
     }
 }
 
-// during the palladion phase (ENVC 9 0x00200010 .. 0x00080004) the floor shrinks to a 6-8 sided shape Nonu saw; nobody went
-// past 13y from the centre in the kill, so the outside of that is drawn as a warning ring until the real edge is measured
+// during the palladion phase (ENVC 9 0x00200010 .. 0x00080004) the floor shrinks to a 6-8 sided shape Nonu saw; players stood
+// alive at up to 16.1y from the centre, so the outside of 16.5y is drawn as a warning ring until the real edge is measured
 class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay near the middle!")
 {
-    private static readonly AOEShapeDonut _shape = new(13, 30);
+    private static readonly AOEShapeDonut _shape = new(16.5f, 30);
     private bool _active;
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
