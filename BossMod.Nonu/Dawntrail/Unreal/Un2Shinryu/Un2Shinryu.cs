@@ -265,6 +265,23 @@ class SpikesicleKnockback(BossModule module) : Components.KnockbackFromCastTarge
 }
 
 class AkhMorn(BossModule module) : Components.CastSharedTankbuster(module, AID.AkhMorn, 4);
+
+// Akh Rhai drops a lingering 4y puddle where a random non-tank stands about 2s after Akh Morn lands (one at the first Akh Morn,
+// two at the second), so the non-tanks keep apart until it lands.
+class AkhRhaiBait(BossModule module) : Components.UniformStackSpread(module, 0, 4, alwaysShowSpreads: true, raidwideOnResolve: false)
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.AkhMorn)
+            AddSpreads(Raid.WithoutSlot().Where(p => p.Role != Role.Tank && p.InstanceID != spell.TargetID), Module.CastFinishAt(spell, 2.1f));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.AkhRhaiFirst)
+            Spreads.Clear();
+    }
+}
 class AkhRhai(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _shape = new(4);
@@ -436,6 +453,7 @@ class Un2ShinryuStates : StateMachineBuilder
             .ActivateOnEnter<Dragonfist>()
             .ActivateOnEnter<AkhMorn>()
             .ActivateOnEnter<AkhRhai>()
+            .ActivateOnEnter<AkhRhaiBait>()
             .ActivateOnEnter<Hellfire>()
             .ActivateOnEnter<JudgmentBolt>()
             .ActivateOnEnter<EarthBreath>()
