@@ -33,7 +33,7 @@ public enum AID : uint
     Disgorge2 = 33062, // Boss->self, no cast, single-target
     AutoAttack2 = 33063, // Boss->player, no cast, single-target
     ArchaicRockbreaker = 33064, // Boss->location, 5.0s cast, range 6 circle
-    Shockwave = 33065, // Helper->self, no cast, range 60 circle, no knockback in Normal
+    Shockwave = 33065, // Helper->self, no cast, range 60 circle, knockback 10 from the centre
     ArchaicRockbreakerAOE = 33066, // Helper->location, 7.0s cast, range 8 circle, two waves 5s apart
     InsideRoundhouse = 33067, // Boss->self, no cast, range 12 circle
     OutsideRoundhouse = 33068, // Boss->self, no cast, range 8-20 donut
@@ -107,6 +107,33 @@ class FireIIIBig(BossModule module) : Components.SpreadFromCastTargets(module, A
 class BlizzardIIIIn(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIIn, new AOEShapeDonut(8, 30));
 class BlizzardIIIOut(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIOut, new AOEShapeDonut(14, 30));
 class ArchaicRockbreaker(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreaker, 6);
+// the rockbreaker cast ends in a shockwave about 1.85s later that pushes everyone about 10y out from the centre (9-9.4y measured)
+class Shockwave(BossModule module) : Components.Knockback(module, AID.Shockwave)
+{
+    private DateTime _activation;
+
+    public override IEnumerable<Source> Sources(int slot, Actor actor)
+    {
+        if (_activation != default)
+            yield return new(Module.Center, 10, _activation);
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.ArchaicRockbreaker)
+            _activation = Module.CastFinishAt(spell, 1.85f);
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.Shockwave)
+        {
+            ++NumCasts;
+            _activation = default;
+        }
+    }
+}
+
 class ArchaicDemolish(BossModule module) : Components.StackWithCastTargets(module, AID.ArchaicDemolishAOE, 6, 2);
 class AscendantFist(BossModule module) : Components.SingleTargetCast(module, AID.AscendantFist);
 class Charybdis(BossModule module) : Components.SpreadFromCastTargets(module, AID.CharybdisAOE, 6);
@@ -202,6 +229,7 @@ class P9NKokytosStates : StateMachineBuilder
             .ActivateOnEnter<BlizzardIIIIn>()
             .ActivateOnEnter<BlizzardIIIOut>()
             .ActivateOnEnter<ArchaicRockbreaker>()
+            .ActivateOnEnter<Shockwave>()
             .ActivateOnEnter<ArchaicRockbreakerWaves>()
             .ActivateOnEnter<ArchaicDemolish>()
             .ActivateOnEnter<AscendantFist>()
