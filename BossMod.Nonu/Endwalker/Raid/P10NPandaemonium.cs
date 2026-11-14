@@ -4,9 +4,9 @@ public enum OID : uint
 {
     Boss = 0x3F19, // R35.000, x1
     Helper = 0x233C, // R0.500, x23, Helper type
-    PandaemoniacPillar = 0x3F1A, // R1.000, x8
-    PandaemoniacPillar1 = 0x3F1B, // R1.000, x8
-    Actor3F1C = 0x3F1C, // R0.200, x6
+    PillarJail = 0x3F1A, // R1.000, x8, imprisonment pillars
+    PillarCannon = 0x3F1B, // R1.000, x8, cannonspawn pillars
+    WebPoint = 0x3F1C, // R0.200, x6, fixed points the webs join
     ActorFF38D = 0xFF38D, // R0.500, x1, EventNpc type
     Exit = 0x1E850B, // R0.500, x1, EventObj type
     Actor1EA1A1 = 0x1EA1A1, // R2.000, x1, EventObj type
@@ -15,69 +15,187 @@ public enum OID : uint
 public enum AID : uint
 {
     Silkspit = 33369, // Boss->self, 3.0s cast, single-target
-    Silkspit1 = 33370, // Helper->player, no cast, range 7 circle
-    EntanglingWeb = 33371, // Helper->location, 3.5s cast, range 10 circle
-    EntanglingWeb1 = 33372, // Helper->location, 3.5s cast, range 5 circle
+    SilkspitAOE = 33370, // Helper->player, no cast, range 7 circle spread, binds the target
+    EntanglingWebPoint = 33371, // Helper->location, 3.5s cast, range 10 circle
+    EntanglingWebPlayer = 33372, // Helper->location, 3.5s cast, range 5 circle
     PandaemoniacPillars = 33373, // Boss->self, 5.5+1.2s cast, single-target
-    Bury = 33374, // PandaemoniacPillar/PandaemoniacPillar1->self, no cast, single-target
-    Bury1 = 33375, // Helper->self, 6.7s cast, range 2 circle
-    Imprisonment = 33377, // PandaemoniacPillar->self, no cast, single-target
-    Imprisonment1 = 33378, // Helper->self, 4.0s cast, range 4 circle
-    Cannonspawn = 33379, // PandaemoniacPillar1->self, no cast, single-target
-    Cannonspawn1 = 33380, // Helper->self, 4.0s cast, range 3-7 donut
+    Bury = 33374, // PillarJail/PillarCannon->self, no cast, single-target
+    BuryAOE = 33375, // Helper->self, 6.7s cast, range 2 circle, tower to stand in
+    UnmitigatedExplosion = 33376, // Helper->self, no cast, range 70 circle, empty bury tower
+    Imprisonment = 33377, // PillarJail->self, no cast, single-target
+    ImprisonmentAOE = 33378, // Helper->self, 4.0s cast, range 4 circle
+    Cannonspawn = 33379, // PillarCannon->self, no cast, single-target
+    CannonspawnAOE = 33380, // Helper->self, 4.0s cast, range 3-7 donut
+    PandaemoniacRayVisual = 33381, // Boss->self, 6.0+0.2s cast, single-target
     PandaemoniacRay = 33382, // Helper->self, 6.2s cast, range 30 width 50 rect
-    PandaemoniacRay1 = 33383, // Boss->self, 6.0+0.2s cast, single-target
     Touchdown = 33384, // Boss->self, 10.0+1.0s cast, single-target
-    Touchdown1 = 33385, // Helper->self, 11.0s cast, range 4 circle
+    TouchdownAOE = 33385, // Helper->self, 11.0s cast, range 4 circle (+16 area-of-influence-up, P10S)
     HarrowingHell = 33386, // Boss->self, 5.0+0.8s cast, single-target
-    HarrowingHell1 = 33387, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell2 = 33388, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell3 = 33389, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell4 = 33390, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell5 = 33391, // Helper->self, 3.9s cast, range 60 width 60 rect
+    HarrowingHellAOE1 = 33387, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellAOE2 = 33388, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellAOE3 = 33389, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellAOE4 = 33390, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellKnockback = 33391, // Helper->self, 3.9s cast, range 60 width 60 rect, knockback 25 forward
     PartedPlumes = 33392, // Boss->self, 3.0s cast, single-target
-    PartedPlumes1 = 33393, // Helper->self, 4.0s cast, range 50 20-degree cone
+    PartedPlumesAOE = 33393, // Helper->self, 4.0s cast, range 50 20-degree cone
     WickedStep = 33394, // Boss->self, 6.0+1.1s cast, single-target
-    WickedStep1 = 33395, // Helper->self, 7.1s cast, range 4 circle
-    WickedStep2 = 33396, // Helper->self, 9.5s cast, range 4 circle
+    WickedStepAOE1 = 33395, // Helper->self, 7.1s cast, range 4 circle, tank tower
+    WickedStepAOE2 = 33396, // Helper->self, 9.5s cast, range 4 circle, tank tower
+    WickedStepUnmitigatedExplosion = 33397, // Helper->self, 1.0s cast, range 70 circle, empty tank tower
     PandaemoniacMeltdown = 33398, // Boss->self, 5.5+0.6s cast, single-target
-    PandaemoniacMeltdown1 = 33399, // Helper->self, no cast, range 50 width 6 rect
+    PandaemoniacMeltdownAOE = 33399, // Helper->self, no cast, range 50 width 6 rect, line stack
     SoulGrasp = 33400, // Boss->self, 5.0+0.6s cast, single-target
-    SoulGrasp1 = 33401, // Helper->players, no cast, range 4 circle
+    SoulGraspAOE = 33401, // Helper->players, no cast, range 4 circle, shared tankbuster x4
     AutoAttack = 33402, // Boss->player, no cast, single-target
     Ultima = 33403, // Boss->location, 5.0s cast, range 50 circle
-    HarrowingHell6 = 34485, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell7 = 34486, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell8 = 34487, // Helper->self, no cast, range 60 width 60 rect
-    HarrowingHell9 = 34488, // Helper->self, no cast, range 60 width 60 rect
-    EntanglingWeb2 = 34593, // Boss->self, 3.0s cast, single-target
-    Ability34722 = 34722, // Helper->player, no cast, single-target
+    HarrowingHellAOE5 = 34485, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellAOE6 = 34486, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellAOE7 = 34487, // Helper->self, no cast, range 60 width 60 rect
+    HarrowingHellAOE8 = 34488, // Helper->self, no cast, range 60 width 60 rect
+    EntanglingWeb = 34593, // Boss->self, 3.0s cast, single-target
+    PandaemoniacMeltdownTargetSelect = 34722, // Helper->player, no cast, single-target
+}
+
+public enum SID : uint
+{
+    Bind = 2518, // Helper->player, from silkspit or a web
+    BindingSoulSnare = 3547, // none->player, stacks while held in a web
+    Heavy = 14, // crossing a web line
 }
 
 public enum IconID : uint
 {
-    Icon462 = 462, // player
-    Icon467 = 467, // player
+    Silkspit = 462, // player
+    SoulGrasp = 467, // player
 }
 
 public enum TetherID : uint
 {
-    Tether57 = 57, // Actor3F1C/player->Actor3F1C/player
-    Tether226 = 226, // Actor3F1C->Actor3F1C
+    Silkspit = 57, // player->player
+    Web = 226, // WebPoint->WebPoint/player
 }
 
-class EntanglingWeb(BossModule module) : Components.StandardAOEs(module, AID.EntanglingWeb, 10);
-class EntanglingWeb1(BossModule module) : Components.StandardAOEs(module, AID.EntanglingWeb1, 5);
-class Bury1(BossModule module) : Components.StandardAOEs(module, AID.Bury1, 2);
-class Imprisonment1(BossModule module) : Components.StandardAOEs(module, AID.Imprisonment1, 4);
-class Cannonspawn1(BossModule module) : Components.StandardAOEs(module, AID.Cannonspawn1, new AOEShapeDonut(3, 7));
+class EntanglingWebPoint(BossModule module) : Components.StandardAOEs(module, AID.EntanglingWebPoint, 10);
+class EntanglingWebPlayer(BossModule module) : Components.StandardAOEs(module, AID.EntanglingWebPlayer, 5);
+class Bury(BossModule module) : Components.CastTowers(module, AID.BuryAOE, 2, 1, 2);
+class Imprisonment(BossModule module) : Components.StandardAOEs(module, AID.ImprisonmentAOE, 4);
+class Cannonspawn(BossModule module) : Components.StandardAOEs(module, AID.CannonspawnAOE, new AOEShapeDonut(3, 7));
 class PandaemoniacRay(BossModule module) : Components.StandardAOEs(module, AID.PandaemoniacRay, new AOEShapeRect(30, 25));
-class Touchdown1(BossModule module) : Components.StandardAOEs(module, AID.Touchdown1, 4);
-class HarrowingHell5(BossModule module) : Components.StandardAOEs(module, AID.HarrowingHell5, new AOEShapeRect(60, 30));
-class PartedPlumes1(BossModule module) : Components.StandardAOEs(module, AID.PartedPlumes1, new AOEShapeCone(50, 10.Degrees()));
-class WickedStep1(BossModule module) : Components.StandardAOEs(module, AID.WickedStep1, 4);
-class WickedStep2(BossModule module) : Components.StandardAOEs(module, AID.WickedStep2, 4);
+class Touchdown(BossModule module) : Components.StandardAOEs(module, AID.TouchdownAOE, 20);
+class HarrowingHell(BossModule module) : Components.RaidwideCast(module, AID.HarrowingHell, "8x raidwide, then knockback");
+class HarrowingHellKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HarrowingHellKnockback, 25, kind: Kind.DirForward);
+class PandaemoniacMeltdown(BossModule module) : Components.SimpleLineStack(module, 3, 50, AID.PandaemoniacMeltdownTargetSelect, AID.PandaemoniacMeltdownAOE, 6.2f);
+class SoulGrasp(BossModule module) : Components.IconSharedTankbuster(module, (uint)IconID.SoulGrasp, AID.SoulGraspAOE, 4, 5.8f);
 class Ultima(BossModule module) : Components.RaidwideCast(module, AID.Ultima);
+
+// cones from the centre, two at a time about 0.3s apart; only the next few are drawn
+class PartedPlumes(BossModule module) : Components.StandardAOEs(module, AID.PartedPlumesAOE, new AOEShapeCone(50, 10.Degrees()), 6, highlightImminent: true);
+
+// the centre of the main platform is a voidzone while the plumes go off (ENVC 4, P10S's 8y circle)
+class PartedPlumesVoidzone(BossModule module) : Components.GenericAOEs(module, default, "GTFO from voidzone!")
+{
+    private static readonly AOEShapeCircle _shape = new(8);
+    private bool _active;
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        if (_active)
+            yield return new(_shape, new WPos(100, 100));
+    }
+
+    public override void OnMapEffect(byte index, uint state)
+    {
+        if (index == 4 && state is 0x00020001 or 0x00080004)
+            _active = state == 0x00020001;
+    }
+}
+
+// two tank towers; anyone else in them blows up, an empty one is a raidwide
+class WickedStep(BossModule module) : Components.GenericTowers(module)
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID is AID.WickedStepAOE1 or AID.WickedStepAOE2)
+            Towers.Add(new(caster.Position, 4, 1, 1, Raid.WithSlot().WhereActor(a => a.Role != Role.Tank).Mask(), Module.CastFinishAt(spell)));
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID is AID.WickedStepAOE1 or AID.WickedStepAOE2)
+        {
+            ++NumCasts;
+            Towers.RemoveAll(t => t.Position.AlmostEqual(caster.Position, 1));
+        }
+    }
+}
+
+// silkspit binds its targets; a bound target near a web point gets pulled into the web, so spread 7y and keep away from the points
+class Silkspit(BossModule module) : Components.UniformStackSpread(module, 0, 7)
+{
+    private readonly IReadOnlyList<Actor> _points = module.Enemies(OID.WebPoint);
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        base.AddHints(slot, actor, hints);
+        if (IsSpreadTarget(actor) && _points.InRadius(actor.Position, SpreadRadius).Any())
+            hints.Add("GTFO from web points!");
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (IsSpreadTarget(actor))
+            foreach (var p in _points)
+                hints.AddForbiddenZone(ShapeDistance.Circle(p.Position, SpreadRadius));
+    }
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        base.DrawArenaBackground(pcSlot, pc);
+        Arena.Actors(_points, ArenaColor.Object, true);
+    }
+
+    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
+    {
+        if (iconID == (uint)IconID.Silkspit)
+            AddSpread(actor, WorldState.FutureTime(10.1f));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.SilkspitAOE)
+            Spreads.Clear();
+    }
+}
+
+// web lines join bound points (and anyone bound next to them); running through one makes you heavy
+class WebLines(BossModule module) : Components.GenericAOEs(module, default, "Don't cross the web!")
+{
+    private readonly List<(Actor from, Actor to)> _webs = [];
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        foreach (var (from, to) in _webs)
+        {
+            if (from == actor || to == actor)
+                continue;
+            var dir = to.Position - from.Position;
+            yield return new(new AOEShapeRect(dir.Length(), 0.5f), from.Position, Angle.FromDirection(dir));
+        }
+    }
+
+    public override void OnTethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (tether.ID == (uint)TetherID.Web && WorldState.Actors.Find(tether.Target) is var target && target != null)
+            _webs.Add((source, target));
+    }
+
+    public override void OnUntethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (tether.ID == (uint)TetherID.Web)
+            _webs.RemoveAll(w => w.from == source);
+    }
+}
 
 // P10S layout: a 26x30 main platform, two 8x30 side platforms 25y out, and 2y-wide bridges to them (ENVC 2 right, 3 left)
 class Platforms(BossModule module) : BossComponent(module)
@@ -116,18 +234,23 @@ class P10NPandaemoniumStates : StateMachineBuilder
     public P10NPandaemoniumStates(BossModule module) : base(module)
     {
         TrivialPhase()
-            .ActivateOnEnter<EntanglingWeb>()
-            .ActivateOnEnter<EntanglingWeb1>()
-            .ActivateOnEnter<Bury1>()
-            .ActivateOnEnter<Imprisonment1>()
-            .ActivateOnEnter<Cannonspawn1>()
+            .ActivateOnEnter<EntanglingWebPoint>()
+            .ActivateOnEnter<EntanglingWebPlayer>()
+            .ActivateOnEnter<Bury>()
+            .ActivateOnEnter<Imprisonment>()
+            .ActivateOnEnter<Cannonspawn>()
             .ActivateOnEnter<PandaemoniacRay>()
-            .ActivateOnEnter<Touchdown1>()
-            .ActivateOnEnter<HarrowingHell5>()
-            .ActivateOnEnter<PartedPlumes1>()
-            .ActivateOnEnter<WickedStep1>()
-            .ActivateOnEnter<WickedStep2>()
+            .ActivateOnEnter<Touchdown>()
+            .ActivateOnEnter<HarrowingHell>()
+            .ActivateOnEnter<HarrowingHellKnockback>()
+            .ActivateOnEnter<PandaemoniacMeltdown>()
+            .ActivateOnEnter<SoulGrasp>()
             .ActivateOnEnter<Ultima>()
+            .ActivateOnEnter<PartedPlumes>()
+            .ActivateOnEnter<PartedPlumesVoidzone>()
+            .ActivateOnEnter<WickedStep>()
+            .ActivateOnEnter<Silkspit>()
+            .ActivateOnEnter<WebLines>()
             .ActivateOnEnter<Platforms>();
     }
 }
