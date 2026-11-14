@@ -9,22 +9,23 @@ public enum OID : uint
     IceSphere = 0x3FCE, // R0.700, x4
     Exit = 0x1E850B, // R0.500, x1, EventObj type
     Actor1EA1A1 = 0x1EA1A1, // R2.000, x1, EventObj type
-    Actor1EB881 = 0x1EB881, // R0.500, x4, EventObj type
+    CharybdisPuddle = 0x1EB881, // R0.500, x4, EventObj type, left under each charybdis target for 20s
 }
 
 public enum AID : uint
 {
     AutoAttack = 33045, // Boss->player, no cast, single-target
     GluttonysAugur = 33046, // Boss->self, 5.0s cast, single-target
-    GluttonysAugur1 = 33047, // Helper->self, no cast, range 60 circle
-    Ravening = 33048, // Boss->self, 4.0s cast, single-target
-    Ravening1 = 33049, // Boss->self, 4.0s cast, single-target
-    Ravening2 = 33050, // Boss->self, 3.0+1.0s cast, single-target
+    GluttonysAugurAOE = 33047, // Helper->self, no cast, range 60 circle
+    RaveningMage = 33048, // Boss->self, 4.0s cast, single-target
+    RaveningMartialist = 33049, // Boss->self, 4.0s cast, single-target
+    RaveningBeast = 33050, // Boss->self, 3.0+1.0s cast, single-target
     AutoAttack1 = 33052, // Boss->player, no cast, single-target
     Dualspell = 33053, // Boss->self, 5.0s cast, single-target
-    BlizzardIII = 33055, // Helper->self, 7.0s cast, range ?-30 donut
-    FireIII = 33056, // Helper->players, 7.0s cast, range 12 circle
-    BlizzardIII1 = 33057, // Helper->self, 7.0s cast, range ?-30 donut
+    FireIIISmall = 33054, // Helper->players, 7.0s cast, range 6 circle spread
+    BlizzardIIIOut = 33055, // Helper->self, 7.0s cast, range 14-30 donut
+    FireIIIBig = 33056, // Helper->players, 7.0s cast, range 12 circle spread
+    BlizzardIIIIn = 33057, // Helper->self, 7.0s cast, range 8-30 donut
     Ability33058 = 33058, // Helper->self, no cast, single-target
     Ability33059 = 33059, // Helper->self, no cast, single-target
     Disgorge = 33060, // Boss->self, no cast, single-target
@@ -32,107 +33,191 @@ public enum AID : uint
     Disgorge2 = 33062, // Boss->self, no cast, single-target
     AutoAttack2 = 33063, // Boss->player, no cast, single-target
     ArchaicRockbreaker = 33064, // Boss->location, 5.0s cast, range 6 circle
-    Shockwave = 33065, // Helper->self, no cast, range 60 circle
-    ArchaicRockbreaker1 = 33066, // Helper->location, 7.0s cast, range 8 circle
-    OutsideRoundhouse = 33068, // Boss->self, no cast, range ?-20 donut
-    SwingingKick = 33069, // Boss->self, 1.0s cast, range 40 180-degree cone
+    Shockwave = 33065, // Helper->self, no cast, range 60 circle, no knockback in Normal
+    ArchaicRockbreakerAOE = 33066, // Helper->location, 7.0s cast, range 8 circle, two waves 5s apart
+    InsideRoundhouse = 33067, // Boss->self, no cast, range 12 circle
+    OutsideRoundhouse = 33068, // Boss->self, no cast, range 8-20 donut
+    SwingingKickFront = 33069, // Boss->self, 1.0s cast, range 40 180-degree cone
+    SwingingKickRear = 33070, // Boss->self, 1.0s cast, range 40 180-degree cone
     ArchaicDemolish = 33071, // Boss->self, 7.5+1.0s cast, single-target
-    ArchaicDemolish1 = 33072, // Helper->players, 8.5s cast, range 6 circle
+    ArchaicDemolishAOE = 33072, // Helper->players, 8.5s cast, range 6 circle, healer stacks
     AscendantFist = 33073, // Boss->player, 5.0s cast, single-target
     Charybdis = 33074, // Boss->self, 7.0+1.0s cast, single-target
-    Charybdis1 = 33075, // Helper->players, 8.0s cast, range 6 circle
+    CharybdisAOE = 33075, // Helper->players, 8.0s cast, range 6 circle spread, leaves a puddle
     Comet = 33076, // Boss->self, 8.0+1.0s cast, single-target
-    CometImpact = 33077, // Comet->self, 8.0s cast, range 60 circle
-    Burst = 33078, // Comet->self, 6.0s cast, range 10 circle
-    Touchdown = 33079, // Boss->location, no cast, range 60 circle
+    CometImpact = 33077, // Comet->self, 8.0s cast, range 60 circle, proximity
+    CometBurst = 33078, // Comet->self, 6.0s cast, range 10 circle
+    Touchdown = 33079, // Boss->location, no cast, range 60 circle, proximity
     BeastlyRoar = 33080, // Boss->self, 4.0s cast, range 60 circle
     GluttonousRampage = 33081, // Boss->self, 8.0s cast, single-target
     RavenousBite = 33082, // Boss->player, no cast, single-target
     EclipticMeteor = 33083, // Boss->self, 7.0+2.0s cast, single-target
-    EclipticMeteor1 = 33084, // Helper->self, no cast, single-target
+    EclipticMeteorVisual = 33084, // Helper->self, no cast, single-target
     BeastlyBile = 33085, // Boss->self, no cast, single-target
-    BeastlyBile1 = 33086, // Helper->player, 7.0s cast, range 6 circle
-    PulverizingPounce = 33087, // Boss->players, 5.0s cast, range 6 circle
+    BeastlyBileAOE = 33086, // Helper->player, 7.0s cast, range 6 circle spread
+    PulverizingPounce = 33087, // Boss->players, 5.0s cast, range 6 circle stack
     AutoAttack3 = 33088, // Boss->player, no cast, single-target
     GlobalSpell = 33089, // Boss->self, 6.0s cast, single-target
-    GlobalSpell1 = 33090, // Helper->self, no cast, range 60 circle
-    Burst1 = 33091, // Comet->self, no cast, single-target
+    GlobalSpellAOE = 33090, // Helper->self, no cast, range 60 circle
+    CometBurstInstant = 33091, // Comet->self, no cast, single-target
     Ability33092 = 33092, // Boss->location, no cast, single-target
-    Ability33094 = 33094, // Helper->self, 13.0s cast, range 60 circle
-    FrontCombination = 33096, // Boss->self, 5.0s cast, range 8-20 donut
-    FireIII1 = 33102, // Boss->self, 5.0s cast, single-target
-    BlizzardIII2 = 33103, // Boss->self, 5.0s cast, single-target
-    EclipticMeteor2 = 33160, // Helper->self, 1.0s cast, range 60 circle
+    TouchdownMarker = 33094, // Helper->self, 13.0s cast, range 60 circle, proximity from the centre
+    FrontCombinationIn = 33095, // Boss->self, 5.0s cast, range 12 circle
+    FrontCombinationOut = 33096, // Boss->self, 5.0s cast, range 8-20 donut
+    RearCombinationIn = 33097, // Boss->self, 5.0s cast, range 12 circle
+    RearCombinationOut = 33098, // Boss->self, 5.0s cast, range 8-20 donut
+    FireIII = 33102, // Boss->self, 5.0s cast, single-target
+    BlizzardIII = 33103, // Boss->self, 5.0s cast, single-target
+    EclipticMeteorAOE = 33160, // Helper->self, 1.0s cast, range 60 circle, hide behind the comet that stays
     IceflameSummoning = 34529, // Boss->self, 5.0s cast, single-target
-    Explosion = 34530, // FireSphere->self, 7.0s cast, range 8 circle
-    Explosion1 = 34531, // FireSphere->self, 7.0s cast, range 16 circle
-    SphereShatter = 34532, // IceSphere->self, 7.0s cast, range 8 circle
-    SphereShatter1 = 34533, // IceSphere->self, 7.0s cast, range 16 circle
-    Ability34599 = 34599, // Helper->self, 7.0s cast, range 8 circle
-    Ability34600 = 34600, // Helper->self, 7.0s cast, range 8 circle
-    Ability34601 = 34601, // Helper->self, 7.0s cast, range 8 circle
-    Ability34602 = 34602, // Helper->self, 7.0s cast, range 8 circle
+    FireSphereSmall = 34530, // FireSphere->self, 7.0s cast, range 8 circle
+    FireSphereBig = 34531, // FireSphere->self, 7.0s cast, range 16 circle
+    IceSphereSmall = 34532, // IceSphere->self, 7.0s cast, range 8 circle
+    IceSphereBig = 34533, // IceSphere->self, 7.0s cast, range 16 circle
+    SphereVisual1 = 34599, // Helper->self, 7.0s cast, range 8 circle
+    SphereVisual2 = 34600, // Helper->self, 7.0s cast, range 8 circle
+    SphereVisual3 = 34601, // Helper->self, 7.0s cast, range 8 circle
+    SphereVisual4 = 34602, // Helper->self, 7.0s cast, range 8 circle
 }
 
 public enum IconID : uint
 {
-    Icon100 = 100, // player
-    Icon101 = 101, // player
-    Icon161 = 161, // player
-    Icon218 = 218, // player
-    Icon314 = 314, // player
-    Icon375 = 375, // player
-    Icon453 = 453, // player
+    ArchaicDemolish = 100, // player
+    CharybdisAOE = 101, // player
+    PulverizingPounce = 161, // player
+    AscendantFist = 218, // player
+    GluttonousRampage = 314, // player
+    BeastlyBile = 375, // player
+    FireIIISmall = 452, // player
+    FireIIIBig = 453, // player
 }
 
 public enum TetherID : uint
 {
-    Tether1 = 1, // player->Boss
-    Tether57 = 57, // player->Boss
+    RampageClose = 1, // player->Boss
+    RampageFar = 57, // player->Boss
 }
 
-class ArchaicRockbreaker(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreaker, 6);
-class ArchaicRockbreaker1(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreaker1, 8);
-class SwingingKick(BossModule module) : Components.StandardAOEs(module, AID.SwingingKick, new AOEShapeCone(40, 90.Degrees()));
-class AscendantFist(BossModule module) : Components.SingleTargetCast(module, AID.AscendantFist);
-class CometImpact(BossModule module) : Components.RaidwideCast(module, AID.CometImpact);
-class Burst(BossModule module) : Components.StandardAOEs(module, AID.Burst, 10);
+class GluttonysAugur(BossModule module) : Components.RaidwideCast(module, AID.GluttonysAugur);
+class GlobalSpell(BossModule module) : Components.RaidwideCast(module, AID.GlobalSpell);
 class BeastlyRoar(BossModule module) : Components.RaidwideCast(module, AID.BeastlyRoar);
-class Ability33094(BossModule module) : Components.RaidwideCast(module, AID.Ability33094);
-class FrontCombination(BossModule module) : Components.StandardAOEs(module, AID.FrontCombination, new AOEShapeDonut(8, 20));
-class EclipticMeteor2(BossModule module) : Components.RaidwideCast(module, AID.EclipticMeteor2);
-class Explosion(BossModule module) : Components.StandardAOEs(module, AID.Explosion, 8);
-class Explosion1(BossModule module) : Components.StandardAOEs(module, AID.Explosion1, 16);
-class SphereShatter(BossModule module) : Components.StandardAOEs(module, AID.SphereShatter, 8);
-class SphereShatter1(BossModule module) : Components.StandardAOEs(module, AID.SphereShatter1, 16);
-class Ability34599(BossModule module) : Components.StandardAOEs(module, AID.Ability34599, 8);
-class Ability34600(BossModule module) : Components.StandardAOEs(module, AID.Ability34600, 8);
-class Ability34601(BossModule module) : Components.StandardAOEs(module, AID.Ability34601, 8);
-class Ability34602(BossModule module) : Components.StandardAOEs(module, AID.Ability34602, 8);
+class GluttonousRampage(BossModule module) : Components.CastHint(module, AID.GluttonousRampage, "Tankbusters on tethered tanks");
+class FireIIISmall(BossModule module) : Components.SpreadFromCastTargets(module, AID.FireIIISmall, 6);
+class FireIIIBig(BossModule module) : Components.SpreadFromCastTargets(module, AID.FireIIIBig, 12);
+class BlizzardIIIIn(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIIn, new AOEShapeDonut(8, 30));
+class BlizzardIIIOut(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIOut, new AOEShapeDonut(14, 30));
+class ArchaicRockbreaker(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreaker, 6);
+class ArchaicDemolish(BossModule module) : Components.StackWithCastTargets(module, AID.ArchaicDemolishAOE, 6, 2);
+class AscendantFist(BossModule module) : Components.SingleTargetCast(module, AID.AscendantFist);
+class Charybdis(BossModule module) : Components.SpreadFromCastTargets(module, AID.CharybdisAOE, 6);
+class CharybdisPuddle(BossModule module) : Components.Voidzone(module, 6, (uint)OID.CharybdisPuddle);
+class BeastlyBile(BossModule module) : Components.SpreadFromCastTargets(module, AID.BeastlyBileAOE, 6);
+class PulverizingPounce(BossModule module) : Components.StackWithCastTargets(module, AID.PulverizingPounce, 6);
+class TouchdownMarker(BossModule module) : Components.ProximityAOEs(module, AID.TouchdownMarker, 15);
+class CometImpact(BossModule module) : Components.ProximityAOEs(module, AID.CometImpact, 15);
+class CometBurst(BossModule module) : Components.StandardAOEs(module, AID.CometBurst, 10);
+class FireSphereSmall(BossModule module) : Components.StandardAOEs(module, AID.FireSphereSmall, 8);
+class FireSphereBig(BossModule module) : Components.StandardAOEs(module, AID.FireSphereBig, 16);
+class IceSphereSmall(BossModule module) : Components.StandardAOEs(module, AID.IceSphereSmall, 8);
+class IceSphereBig(BossModule module) : Components.StandardAOEs(module, AID.IceSphereBig, 16);
+
+// six circles land in each of two waves 5s apart; only the earlier wave is shown so the AI doesn't try to dodge both at once
+class ArchaicRockbreakerWaves(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreakerAOE, 8)
+{
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        var all = base.ActiveAOEs(slot, actor).ToList();
+        if (all.Count == 0)
+            return all;
+        var first = all.Min(a => a.Activation);
+        return all.Where(a => a.Activation < first.AddSeconds(1));
+    }
+}
+
+// in (12y circle) or out (8-20 donut) around the boss, then a 180-degree kick to its front or back about 2s later
+class Combination(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeCircle _in = new(12);
+    private static readonly AOEShapeDonut _out = new(8, 20);
+    private static readonly AOEShapeCone _kick = new(40, 90.Degrees());
+    private readonly List<AOEInstance> _aoes = [];
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Take(1);
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        (AOEShape? first, Angle kick) = (AID)spell.Action.ID switch
+        {
+            AID.FrontCombinationIn => (_in, default),
+            AID.FrontCombinationOut => (_out, default),
+            AID.RearCombinationIn => (_in, 180.Degrees()),
+            AID.RearCombinationOut => (_out, 180.Degrees()),
+            _ => ((AOEShape?)null, default(Angle))
+        };
+        if (first != null)
+        {
+            _aoes.Add(new(first, caster.Position, default, Module.CastFinishAt(spell)));
+            _aoes.Add(new(_kick, caster.Position, spell.Rotation + kick, Module.CastFinishAt(spell, 2.8f)));
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID is AID.InsideRoundhouse or AID.OutsideRoundhouse or AID.SwingingKickFront or AID.SwingingKickRear && _aoes.Count > 0)
+        {
+            ++NumCasts;
+            _aoes.RemoveAt(0);
+        }
+    }
+}
+
+// two of the three comets change model and burst; the one that stays blocks the meteor from the centre
+class EclipticMeteor(BossModule module) : Components.GenericLineOfSightAOE(module, AID.EclipticMeteorAOE, 60, false)
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.EclipticMeteor)
+            Modify(Module.Center, Module.Enemies(OID.Comet).Where(c => !c.IsDead && c.ModelState.AnimState2 != 1).Select(c => (c.Position, c.HitboxRadius)), Module.CastFinishAt(spell, 2.6f));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if ((AID)spell.Action.ID == AID.EclipticMeteorAOE)
+            Modify(null, []);
+    }
+}
 
 class P9NKokytosStates : StateMachineBuilder
 {
     public P9NKokytosStates(BossModule module) : base(module)
     {
         TrivialPhase()
-            .ActivateOnEnter<ArchaicRockbreaker>()
-            .ActivateOnEnter<ArchaicRockbreaker1>()
-            .ActivateOnEnter<SwingingKick>()
-            .ActivateOnEnter<AscendantFist>()
-            .ActivateOnEnter<CometImpact>()
-            .ActivateOnEnter<Burst>()
+            .ActivateOnEnter<GluttonysAugur>()
+            .ActivateOnEnter<GlobalSpell>()
             .ActivateOnEnter<BeastlyRoar>()
-            .ActivateOnEnter<Ability33094>()
-            .ActivateOnEnter<FrontCombination>()
-            .ActivateOnEnter<EclipticMeteor2>()
-            .ActivateOnEnter<Explosion>()
-            .ActivateOnEnter<Explosion1>()
-            .ActivateOnEnter<SphereShatter>()
-            .ActivateOnEnter<SphereShatter1>()
-            .ActivateOnEnter<Ability34599>()
-            .ActivateOnEnter<Ability34600>()
-            .ActivateOnEnter<Ability34601>()
-            .ActivateOnEnter<Ability34602>();
+            .ActivateOnEnter<GluttonousRampage>()
+            .ActivateOnEnter<FireIIISmall>()
+            .ActivateOnEnter<FireIIIBig>()
+            .ActivateOnEnter<BlizzardIIIIn>()
+            .ActivateOnEnter<BlizzardIIIOut>()
+            .ActivateOnEnter<ArchaicRockbreaker>()
+            .ActivateOnEnter<ArchaicRockbreakerWaves>()
+            .ActivateOnEnter<ArchaicDemolish>()
+            .ActivateOnEnter<AscendantFist>()
+            .ActivateOnEnter<Charybdis>()
+            .ActivateOnEnter<CharybdisPuddle>()
+            .ActivateOnEnter<BeastlyBile>()
+            .ActivateOnEnter<PulverizingPounce>()
+            .ActivateOnEnter<TouchdownMarker>()
+            .ActivateOnEnter<CometImpact>()
+            .ActivateOnEnter<CometBurst>()
+            .ActivateOnEnter<EclipticMeteor>()
+            .ActivateOnEnter<Combination>()
+            .ActivateOnEnter<FireSphereSmall>()
+            .ActivateOnEnter<FireSphereBig>()
+            .ActivateOnEnter<IceSphereSmall>()
+            .ActivateOnEnter<IceSphereBig>();
     }
 }
 
