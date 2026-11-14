@@ -124,10 +124,18 @@ class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module,
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Select(a => a.aoe);
 
+    public override void Update()
+    {
+        _aoes.RemoveAll(a => WorldState.CurrentTime > a.aoe.Activation.AddSeconds(2));
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if ((AID)spell.Action.ID == AID.RubyReflectionQuadrant)
+        {
+            _aoes.RemoveAll(a => a.caster == caster);
             _aoes.Add((caster, new(Shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell)), 0));
+        }
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -182,7 +190,7 @@ class PoisonStones(BossModule module) : Components.GenericAOEs(module)
     {
         if ((OID)actor.OID != OID.TopazStone)
             return;
-        if (state is 0x00100080 or 0x00100020)
+        if (state is 0x00100080 or 0x00100020 && !_stones.Any(s => s.stone == actor))
             _stones.Add((actor, WorldState.FutureTime(5)));
         else if (state == 0x00040200)
             _stones.RemoveAll(s => s.stone == actor);
