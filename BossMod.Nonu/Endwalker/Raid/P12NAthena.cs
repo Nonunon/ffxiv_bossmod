@@ -317,9 +317,10 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
 
     private static AOEShapeCustom BuildShape()
     {
-        var square = new ArenaBoundsSquare(20);
+        // note: a fresh ArenaBounds has an empty ShapeSimplified until something draws it, so build the square directly
+        var square = CurveApprox.Rect(new WDir(20, 0), new WDir(0, 20));
         var octagon = Enumerable.Range(0, 8).Select(i => OctagonRadius * (45f * i).Degrees().ToDirection());
-        return new(square.Clipper.Difference(new(square.ShapeSimplified), new(octagon)));
+        return new(new PolygonClipper().Difference(new(square), new(octagon)));
     }
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
