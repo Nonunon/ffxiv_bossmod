@@ -177,7 +177,13 @@ class PoisonStones(BossModule module) : Components.GenericAOEs(module)
     {
         base.AddAIHints(slot, actor, assignment, hints);
         foreach (var s in _stones)
+        {
             hints.AddForbiddenZone(ShapeMax, s.stone.Position, default, FullSizeAt(s.activation));
+            // add extra margin to prevent safe-dash function from moving player into growing puddle
+            var radius = RadiusAt(s.activation, WorldState.CurrentTime);
+            if (radius < MaxRadius)
+                hints.AddForbiddenZone(new AOEShapeCircle(radius + 2), s.stone.Position, default, DateTime.MaxValue);
+        }
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
