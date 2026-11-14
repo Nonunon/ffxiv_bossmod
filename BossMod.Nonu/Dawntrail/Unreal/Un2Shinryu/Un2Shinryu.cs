@@ -211,8 +211,95 @@ class Levinbolt(BossModule module) : Components.UniformStackSpread(module, 0, 5,
 }
 
 class Hypernova(BossModule module) : Components.CastHint(module, AID.HypernovaVisual, "Stack together");
-class HypernovaP3(BossModule module) : Components.CastHint(module, AID.HypernovaVisualP3, "Stack together");
-class LevinboltP3Hint(BossModule module) : Components.CastHint(module, AID.LevinboltVisualP3, "Spread, puddles follow");
+// After Shatter the left wing's Ice Storm (6s) starts together with the right wing's Hypernova or Levinbolt (10s). Ice Storm gives
+// Deep Freeze (12s) to anyone standing still when it lands: before Hypernova that is wanted (the stack thaws everyone about 4s later,
+// all 8 frozen in every Hypernova kill), before Levinbolt it is deadly (the puddles drop under each player, both frozen players in
+// two wipes died there).
+class IceStormFreeze(BossModule module) : Components.StayMove(module)
+{
+    private DateTime _iceStorm;
+    private Requirement _requirement;
+
+    private void Refresh()
+    {
+        if (_iceStorm == default || _requirement == Requirement.None)
+            return;
+        foreach (var (slot, _) in Raid.WithSlot())
+            SetState(slot, new(_requirement, _iceStorm));
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        switch ((AID)spell.Action.ID)
+        {
+            case AID.IceStormVisualP3:
+                _iceStorm = Module.CastFinishAt(spell, 0.6f);
+                break;
+            case AID.HypernovaVisualP3:
+                _requirement = Requirement.Stay;
+                break;
+            case AID.LevinboltVisualP3:
+                _requirement = Requirement.Move;
+                break;
+            default:
+                return;
+        }
+        Refresh();
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.IceStorm && _iceStorm != default)
+        {
+            _iceStorm = default;
+            _requirement = Requirement.None;
+            Array.Fill(PlayerStates, default);
+        }
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        base.AddHints(slot, actor, hints);
+        if (PlayerStates[slot].Requirement == Requirement.Stay)
+            hints.Add("Stand still for Ice Storm, Hypernova thaws you", false);
+        else if (PlayerStates[slot].Requirement == Requirement.Move)
+            hints.Add("Keep moving through Ice Storm, Levinbolt drops under you", false);
+    }
+}
+
+// no icon: a random player is the 8y stack target, so the whole party stacks before the Ice Storm freeze locks them in place
+class HypernovaP3(BossModule module) : Components.CastHint(module, AID.HypernovaVisualP3, "Stack together")
+{
+    private WPos StackSpot() => Raid.WithoutSlot().Aggregate((sum: new WDir(), n: 0), (a, p) => (a.sum + (p.Position - Arena.Center), a.n + 1)) is var t && t.n > 0 ? Arena.Center + t.sum / t.n : Arena.Center;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Casters.Count > 0)
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(StackSpot(), 2), Module.CastFinishAt(Casters[0].CastInfo));
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Casters.Count > 0)
+            Arena.AddCircle(StackSpot(), 2, ArenaColor.Safe);
+    }
+}
+
+// no spread hit: at the end of the cast a 5y puddle drops under every player, so spread out to keep them apart
+class LevinboltP3Hint(BossModule module) : Components.UniformStackSpread(module, 0, 5, alwaysShowSpreads: true, raidwideOnResolve: false)
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.LevinboltVisualP3)
+            AddSpreads(Raid.WithoutSlot(), Module.CastFinishAt(spell));
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.LevinboltVisualP3)
+            Spreads.Clear();
+    }
+}
 class LevinboltP3(BossModule module) : Components.StandardAOEs(module, AID.LevinboltP3, 5);
 
 class IcicleAdds(BossModule module) : Components.AddsMulti(module, [(uint)OID.Icicle]);
@@ -725,6 +812,7 @@ class Un2ShinryuStates : StateMachineBuilder
             .ActivateOnEnter<DoomPuddle>()
             .ActivateOnEnter<BenightingBreath>()
             .ActivateOnEnter<IceStormP3>()
+            .ActivateOnEnter<IceStormFreeze>()
             .ActivateOnEnter<HypernovaP3>()
             .ActivateOnEnter<LevinboltP3Hint>()
             .ActivateOnEnter<LevinboltP3>()
