@@ -68,13 +68,13 @@ class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.Im
     }
 }
 
-// late in the fight (three platforms): a big knockback away from one platform's centre. both pulls ended in a fall, the push stopping where
-// the player dropped (19.4y and 24.3y), so the real distance is at least 24.3y; a spot only counts as safe if both a 24y and a 30y push land
-// on a platform (in practice: on the source platform, within ~8.6y of its centre, towards another platform). the moons and birds cast with it
-// land ~3s later, so only falling off counts as a bad landing; their own zones move the AI on afterwards
+// late in the fight (three platforms): a 25y knockback away from one platform's centre (landed twice at 24.8 and 25.0; the earlier falls
+// stopped short because sideways motion ends on the drop). a spot only counts as safe if both a 24y and a 26y push land on a platform:
+// on the source platform near its centre, towards another platform. the moons and birds cast with it land ~3s later, so only falling
+// off counts as a bad landing; their own zones move the AI on afterwards
 class HemitheossAeroIV(BossModule module) : Components.Knockback(module, AID.HemitheossAeroIVAOE, maxCasts: 1)
 {
-    private static readonly float[] _distances = [24, 30];
+    private static readonly float[] _distances = [24, 26];
     private readonly List<Actor> _casters = [];
 
     public override IEnumerable<Source> Sources(int slot, Actor actor)
@@ -161,10 +161,32 @@ class HemitheossHoly(BossModule module) : Components.SpreadFromCastTargets(modul
 class HemitheossAeroII(BossModule module) : Components.BaitAwayCast(module, AID.HemitheossAeroIIAOE, new AOEShapeCircle(8), true);
 class SparkOfLife(BossModule module) : Components.RaidwideCast(module, AID.SparkOfLife);
 
-// 8 explosions, 7y apart, about 1.25s between them
+// 8 explosions, 7y apart, about 1.25s between them. the next two of each line are both shown and treated as happening now (so the AI
+// stays a step ahead), the third as the usual warning; the AI also keeps 7.5y from the first two (hits landed at 7.1-7.4, the hitbox)
 class BladesOfAttis(BossModule module) : Components.Exaflare(module, 7)
 {
+    private static readonly AOEShapeCircle _margin = new(7.5f);
     private readonly List<Actor> _casters = [];
+
+    private IEnumerable<(WPos pos, DateTime activation, bool now)> Explosions()
+    {
+        foreach (var l in Lines.Where(l => l.ExplosionsLeft > 0))
+        {
+            var pos = l.Next;
+            for (var i = 0; i < Math.Min(l.ExplosionsLeft, 3); ++i, pos += l.Advance)
+                yield return (pos, i < 2 ? l.NextExplosion : l.NextExplosion.AddSeconds(l.TimeToMove * i), i < 2);
+        }
+    }
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+        => Explosions().Select(e => new AOEInstance(Shape, e.pos, default, e.activation, e.now ? ImminentColor : FutureColor));
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        foreach (var e in Explosions().Where(e => e.now))
+            hints.AddForbiddenZone(_margin, e.pos, default, e.activation);
+    }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
