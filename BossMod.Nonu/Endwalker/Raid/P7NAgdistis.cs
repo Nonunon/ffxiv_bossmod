@@ -161,31 +161,23 @@ class HemitheossHoly(BossModule module) : Components.SpreadFromCastTargets(modul
 class HemitheossAeroII(BossModule module) : Components.BaitAwayCast(module, AID.HemitheossAeroIIAOE, new AOEShapeCircle(8), true);
 class SparkOfLife(BossModule module) : Components.RaidwideCast(module, AID.SparkOfLife);
 
-// 8 explosions, 7y apart, about 1.25s between them. the next two of each line are both shown and treated as happening now (so the AI
-// stays a step ahead), the third as the usual warning; the AI also keeps 7.5y from the first two (hits landed at 7.1-7.4, the hitbox)
+// 8 explosions, 7y apart, about 1.25s between them. drawn as usual (next one imminent, two more as warning), but the AI knows every
+// remaining explosion of each line with its own timing, 7.5y wide (hits landed at 7.1-7.4, the hitbox): with only three known it ran
+// onto the platform the lines were heading for and got caught; with the whole path it can pick the bridge no line crosses
 class BladesOfAttis(BossModule module) : Components.Exaflare(module, 7)
 {
     private static readonly AOEShapeCircle _margin = new(7.5f);
     private readonly List<Actor> _casters = [];
 
-    private IEnumerable<(WPos pos, DateTime activation, bool now)> Explosions()
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         foreach (var l in Lines.Where(l => l.ExplosionsLeft > 0))
         {
             var pos = l.Next;
-            for (var i = 0; i < Math.Min(l.ExplosionsLeft, 3); ++i, pos += l.Advance)
-                yield return (pos, i < 2 ? l.NextExplosion : l.NextExplosion.AddSeconds(l.TimeToMove * i), i < 2);
+            var time = l.NextExplosion;
+            for (var i = 0; i < l.ExplosionsLeft; ++i, pos += l.Advance, time = time.AddSeconds(l.TimeToMove))
+                hints.AddForbiddenZone(_margin, pos, default, time);
         }
-    }
-
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
-        => Explosions().Select(e => new AOEInstance(Shape, e.pos, default, e.activation, e.now ? ImminentColor : FutureColor));
-
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        base.AddAIHints(slot, actor, assignment, hints);
-        foreach (var e in Explosions().Where(e => e.now))
-            hints.AddForbiddenZone(_margin, e.pos, default, e.activation);
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
