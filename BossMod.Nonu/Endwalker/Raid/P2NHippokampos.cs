@@ -97,7 +97,7 @@ class SewageDeluge(BossModule module) : Components.RaidwideCast(module, AID.Sewa
 
 class SewageDelugeArena(BossModule module) : BossComponent(module)
 {
-    private static readonly ArenaBoundsSquare _square = new(20);
+    private static readonly ArenaBoundsRect _square = P2NHippokampos.DefaultBounds;
     private static readonly ArenaBoundsCustom _flooded = BuildFlooded();
 
     private static ArenaBoundsCustom BuildFlooded()
@@ -108,7 +108,7 @@ class SewageDelugeArena(BossModule module) : BossComponent(module)
             rect(9.625f, 9.625f, 4.375f, 4.375f), rect(-9.625f, 9.625f, 4.375f, 4.375f), rect(9.625f, -9.625f, 4.375f, 4.375f), rect(-9.625f, -9.625f, 4.375f, 4.375f),
             rect(0, 9.5f, 5.5f, 2), rect(0, -9.5f, 5.5f, 2), rect(9.5f, 0, 2, 5.5f), rect(-9.5f, 0, 2, 5.5f),
         };
-        return new(20, _square.Clipper.UnionAll(pieces[0], pieces[1..]));
+        return new(23, _square.Clipper.UnionAll(pieces[0], pieces[1..]));
     }
 
     public override void OnMapEffect(byte index, uint state)
@@ -153,4 +153,9 @@ class P2NHippokamposStates : StateMachineBuilder
 }
 
 [ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 810, NameID = 10348, PlanLevel = 90, Incomplete = true)]
-public class P2NHippokampos(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(20));
+public class P2NHippokampos(ModuleInit init) : BossModule(init, new(100, 100), DefaultBounds)
+{
+    // not a square: the death wall in combat killed at x 82.0-82.4 / 117.5 (17.5-18 from the centre) while players lived at z 76.9 and 122.5;
+    // a 35x45 rectangle keeps the player's centre inside (wall probes on 2026-11-15, plus a mid-fight death at x 82.0)
+    public static readonly ArenaBoundsRect DefaultBounds = new(17.5f, 22.5f);
+}
