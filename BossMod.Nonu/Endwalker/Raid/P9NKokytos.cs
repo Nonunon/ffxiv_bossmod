@@ -94,8 +94,8 @@ public enum IconID : uint
 
 public enum TetherID : uint
 {
-    RampageClose = 1, // player->Boss
-    RampageFar = 57, // player->Boss
+    RampageStretched = 1, // player->Boss, far enough (seen from ~13y)
+    RampageTooClose = 57, // player->Boss, the tether starts like this; stretch it
 }
 
 class GluttonysAugur(BossModule module) : Components.RaidwideCast(module, AID.GluttonysAugur);
@@ -105,42 +105,51 @@ class BeastlyRoar(BossModule module) : Components.RaidwideCast(module, AID.Beast
 class BeastlyRoarKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.BeastlyRoar, 10);
 class GluttonousRampage(BossModule module) : Components.CastHint(module, AID.GluttonousRampage, "Tankbusters on tethered tanks");
 
-// the boss bites whoever holds a rampage tether, twice
+// the boss bites whoever holds a rampage tether, twice. the tether starts too close (57) and turns into the stretched one (1) somewhere
+// around 13-16y from the boss: drawn red until stretched, green after; the AI holding a short tether keeps 15y from the boss
 class GluttonousRampageTethers(BossModule module) : BossComponent(module)
 {
-    private readonly List<Actor> _targets = [];
+    private const float StretchRadius = 15;
+    private readonly Dictionary<ulong, (Actor target, bool stretched)> _tethers = [];
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (_targets.Contains(actor))
-            hints.Add("Tankbuster on you (tether)!", false);
+        if (_tethers.TryGetValue(actor.InstanceID, out var t))
+            hints.Add(t.stretched ? "Tankbuster on you (tether)" : "Stretch the tether!", !t.stretched);
     }
 
     public override void AddGlobalHints(GlobalHints hints)
     {
-        if (_targets.Count > 0)
-            hints.Add($"Tankbuster on {string.Join(", ", _targets.Select(t => t.Name))}");
+        if (_tethers.Count > 0)
+            hints.Add($"Tankbuster on {string.Join(", ", _tethers.Values.Select(t => t.target.Name))}");
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (_tethers.TryGetValue(actor.InstanceID, out var t) && !t.stretched)
+            hints.AddForbiddenZone(ShapeDistance.Circle(Module.PrimaryActor.Position, StretchRadius));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
-        foreach (var t in _targets)
+        foreach (var (target, stretched) in _tethers.Values)
         {
-            Arena.AddLine(Module.PrimaryActor.Position, t.Position, ArenaColor.Danger);
-            Arena.AddCircle(t.Position, 3, ArenaColor.Danger);
+            Arena.AddLine(Module.PrimaryActor.Position, target.Position, stretched ? ArenaColor.Safe : ArenaColor.Danger);
+            Arena.AddCircle(target.Position, 3, ArenaColor.Danger);
         }
     }
 
     public override void OnTethered(Actor source, in ActorTetherInfo tether)
     {
-        if (tether.ID is (uint)TetherID.RampageClose or (uint)TetherID.RampageFar && !_targets.Contains(source))
-            _targets.Add(source);
+        if (tether.ID is (uint)TetherID.RampageStretched or (uint)TetherID.RampageTooClose)
+            _tethers[source.InstanceID] = (source, tether.ID == (uint)TetherID.RampageStretched);
     }
 
     public override void OnUntethered(Actor source, in ActorTetherInfo tether)
     {
-        if (tether.ID is (uint)TetherID.RampageClose or (uint)TetherID.RampageFar)
-            _targets.Remove(source);
+        // a tether switching kind is an untether + tether; only drop it if it still holds the kind being removed
+        if (tether.ID is (uint)TetherID.RampageStretched or (uint)TetherID.RampageTooClose && _tethers.TryGetValue(source.InstanceID, out var t) && t.stretched == (tether.ID == (uint)TetherID.RampageStretched))
+            _tethers.Remove(source.InstanceID);
     }
 }
 class FireIIISmall(BossModule module) : Components.SpreadFromCastTargets(module, AID.FireIIISmall, 6);
@@ -181,10 +190,10 @@ class Charybdis(BossModule module) : Components.SpreadFromCastTargets(module, AI
 class CharybdisPuddle(BossModule module) : Components.Voidzone(module, 6, (uint)OID.CharybdisPuddle);
 class BeastlyBile(BossModule module) : Components.SpreadFromCastTargets(module, AID.BeastlyBileAOE, 6);
 class PulverizingPounce(BossModule module) : Components.StackWithCastTargets(module, AID.PulverizingPounce, 6);
-// the 13s marker starts together with gluttonous rampage; it's only shown for its last 4s, after the first bite
+// the 13s marker starts together with gluttonous rampage; it's only shown for its last 5s, after the first bite
 class TouchdownMarker(BossModule module) : Components.ProximityAOEs(module, AID.TouchdownMarker, 15)
 {
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => base.ActiveAOEs(slot, actor).Where(a => a.Activation <= WorldState.FutureTime(4));
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => base.ActiveAOEs(slot, actor).Where(a => a.Activation <= WorldState.FutureTime(5));
 }
 class CometImpact(BossModule module) : Components.ProximityAOEs(module, AID.CometImpact, 15);
 class CometBurst(BossModule module) : Components.StandardAOEs(module, AID.CometBurst, 10);
