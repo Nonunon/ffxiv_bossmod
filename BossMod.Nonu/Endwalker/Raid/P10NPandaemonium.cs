@@ -83,10 +83,57 @@ class Imprisonment(BossModule module) : Components.StandardAOEs(module, AID.Impr
 class Cannonspawn(BossModule module) : Components.StandardAOEs(module, AID.CannonspawnAOE, new AOEShapeDonut(3, 7));
 class PandaemoniacRay(BossModule module) : Components.StandardAOEs(module, AID.PandaemoniacRay, new AOEShapeRect(30, 25));
 class Touchdown(BossModule module) : Components.StandardAOEs(module, AID.TouchdownAOE, 20);
-class HarrowingHell(BossModule module) : Components.RaidwideCast(module, AID.HarrowingHell, "8x raidwide, then knockback");
+// the cast ends before the hits: 8 raidwides ~1.6s apart, then the knockback ~4s after the last; the hint stays until the knockback lands
+class HarrowingHell(BossModule module) : Components.CastCounter(module, AID.HarrowingHellKnockback)
+{
+    private bool _active;
+
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (_active)
+            hints.Add("8x raidwide, then knockback");
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.HarrowingHell)
+            _active = true;
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.HarrowingHellKnockback)
+        {
+            ++NumCasts;
+            _active = false;
+        }
+    }
+}
 class HarrowingHellKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HarrowingHellKnockback, 25, ignoreImmunes: true, kind: Kind.DirForward);
 class PandaemoniacMeltdown(BossModule module) : Components.SimpleLineStack(module, 3, 50, AID.PandaemoniacMeltdownTargetSelect, AID.PandaemoniacMeltdownAOE, 6.2f);
-class SoulGrasp(BossModule module) : Components.IconSharedTankbuster(module, (uint)IconID.SoulGrasp, AID.SoulGraspAOE, 4, 5.8f);
+// four hits ~1.5s apart on the same target; shown until the last one
+class SoulGrasp(BossModule module) : Components.IconSharedTankbuster(module, (uint)IconID.SoulGrasp, AID.SoulGraspAOE, 4, 5.8f)
+{
+    private int _hits;
+
+    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
+    {
+        base.OnEventIcon(actor, iconID, targetID);
+        if (iconID == (uint)IconID.SoulGrasp)
+            _hits = 0;
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action != WatchedAction)
+            return;
+        ++NumCasts;
+        if (++_hits >= 4)
+            Source = Target = null;
+        else
+            Activation = WorldState.FutureTime(1.6f);
+    }
+}
 class Ultima(BossModule module) : Components.RaidwideCast(module, AID.Ultima);
 
 // cones from the centre, two at a time about 0.3s apart; only the next few are drawn
