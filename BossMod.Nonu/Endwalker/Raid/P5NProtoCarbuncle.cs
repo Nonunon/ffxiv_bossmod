@@ -82,6 +82,15 @@ class TopazRayBent(BossModule module) : Components.GenericAOEs(module)
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Select(a => a.aoe);
 
+    // a bent ray inside a light cell isn't drawn (the cell hits there 0.5s later anyway), but the AI still avoids it since it lands first
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        var cells = Module.FindComponent<RubyReflectionQuadrant>()?.ActiveAOEs(pcSlot, pc).ToList() ?? [];
+        foreach (var (_, a) in _aoes)
+            if (!cells.Any(c => c.Check(a.Origin + 2 * a.Rotation.ToDirection())))
+                a.Shape.Draw(Arena, a.Origin, a.Rotation, a.Color);
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if ((AID)spell.Action.ID is AID.TopazRayBent or AID.TopazRayBentCluster)
@@ -150,13 +159,14 @@ class RubyReflection(BossModule module) : Components.GenericAOEs(module, AID.Sea
     }
 }
 
-// each cell of light hits twice more after the cast ends (0.3s and 0.7s later), so it stays until the second repeat
+// each cell of light hits twice more after the cast ends (0.3s and 0.7s later), so it stays until the second repeat.
+// in the four-cell version the casts start 2s apart, so only the first three are shown; the fourth appears once the first is gone
 class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module, AID.RubyReflectionQuadrant)
 {
     private static readonly AOEShapeRect Shape = new(15, 7.5f);
     private readonly List<(Actor caster, AOEInstance aoe, int repeats)> _aoes = [];
 
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Select(a => a.aoe);
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Select(a => a.aoe).OrderBy(a => a.Activation).Take(3);
 
     public override void Update()
     {
@@ -235,6 +245,7 @@ class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.S
 {
     private const float Radius = 12;
     private const float JumpInterval = 1.05f;
+    private const float MarkerInterval = 1.55f;
     private static readonly AOEShapeCircle Shape = new(Radius);
     private readonly List<WPos> _path = [];
     private int _numJumps;
@@ -278,9 +289,8 @@ class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.S
         {
             case AID.StampedeMarkerMove:
                 _path.Add(spell.TargetXZ);
-                // the first landing comes ~7.3s after the marker's last move
-                if (_path.Count >= Module.Enemies(OID.StampedeSpot).Count(s => !s.IsDestroyed))
-                    _nextJump = WorldState.FutureTime(7.3f);
+                // spots show as the marker reaches them; the marker moves every ~1.55s and the first landing comes ~7.3s after its last move
+                _nextJump = WorldState.FutureTime(7.3f + MarkerInterval * Math.Max(0, Module.Enemies(OID.StampedeSpot).Count(s => !s.IsDestroyed) - _path.Count));
                 break;
             case AID.StarvingStampede:
                 if (_casts.Count > 0)
