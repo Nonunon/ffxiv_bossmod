@@ -41,6 +41,8 @@ public enum AID : uint
     ShadowOfAttis = 30780, // Boss->self, no cast, single-target
     Burst = 30781, // Helper->self, no cast, range 5 circle, tower
     BigBurst = 30782, // Helper->self, no cast, raidwide, a tower nobody soaked
+    HemitheossAeroIV = 30784, // Boss->self, 7.0s cast, single-target
+    HemitheossAeroIVAOE = 30785, // Helper->self, 7.0s cast, range 60 circle, knockback ~20y away from a platform centre
     AutoAttack = 30947, // Boss->self, no cast, single-target
     AutoAttack1 = 30948, // Helper->player, no cast, single-target
     HemitheossGlareIIIAOELong = 31226, // Helper->self, 10.0s cast, range 5-30 donut
@@ -53,7 +55,26 @@ public enum IconID : uint
 }
 
 // damage falls off with distance from the centre: 90k at 7.6 (unsynced lv100 PLD), 40-60k at 13.5-14, ~22k at 16, near 0 past 17
-class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.ImmortalsObolAOE, 15);
+class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.ImmortalsObolAOE, 15)
+{
+    private static readonly AOEShapeCircle _margin = new(16);
+
+    // hidden 1y safety net past the drawn 15y
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        foreach (var c in Casters)
+            hints.AddForbiddenZone(_margin, c.CastInfo!.LocXZ, default, Module.CastFinishAt(c.CastInfo));
+    }
+}
+
+// late in the fight (three platforms): a ~20y knockback away from one platform's centre (19.4y measured before the PLD fell off);
+// the AI looks for a spot whose landing is still on a platform. the moons and birds cast with it land ~3s later, so only falling off
+// counts as a bad landing (with them counted, every landing was unsafe and the AI froze); their own zones move it on afterwards
+class HemitheossAeroIV(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HemitheossAeroIVAOE, 20)
+{
+    public override PointTest DestinationUnsafe(int slot, Actor actor) => PointTest.Never;
+}
 class HemitheossGlareIII(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOE, new AOEShapeDonut(4, 30));
 class HemitheossGlareIIILong(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOELong, new AOEShapeDonut(4, 30));
 class BoughOfAttisFront(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisFrontAOE, 19);
@@ -73,8 +94,8 @@ class BoughOfAttisSideKnockback(BossModule module) : Components.KnockbackFromCas
 class BoughOfAttisBack(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisBackAOE, 25);
 class StaticMoon(BossModule module) : Components.StandardAOEs(module, AID.StaticMoon, 10);
 
-// the Ios and birds wait stacked on a parking spot and teleport into place, already facing their target, ~5.5s before they cast;
-// their moon / line is drawn from then until the real cast starts
+// the Ios and birds wait stacked on a parking spot and teleport into place, already facing their target, 5.7-11.4s before they cast;
+// their moon / line is drawn (not as an AI zone) from then until the real cast starts
 class ForbiddenFruitPreview(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _moon = new(10);
@@ -87,7 +108,9 @@ class ForbiddenFruitPreview(BossModule module) : Components.GenericAOEs(module)
     {
         foreach (var a in Module.Enemies(OID.ImmatureIo).Concat(Module.Enemies(OID.ImmatureStymphalide)))
             if (_state.TryGetValue(a.InstanceID, out var st) && st.pending && a.CastInfo == null)
-                yield return new((OID)a.OID == OID.ImmatureIo ? _moon : _line, a.Position, a.Rotation, st.moved.AddSeconds(LeadToHit));
+                // draw only: the wait before the cast varies (5.7s early on, 11.4s late), and a guessed time made the AI dodge too early
+                // (it blocked the only safe spot for Aero IV's knockback); the AI reacts to the real 4.7s cast instead
+                yield return new((OID)a.OID == OID.ImmatureIo ? _moon : _line, a.Position, a.Rotation, st.moved.AddSeconds(LeadToHit), Risky: false);
     }
 
     public override void Update()
@@ -238,6 +261,7 @@ class P7NAgdistisStates : StateMachineBuilder
             .ActivateOnEnter<BoughOfAttisSide>()
             .ActivateOnEnter<BoughOfAttisSideKnockback>()
             .ActivateOnEnter<BoughOfAttisBack>()
+            .ActivateOnEnter<HemitheossAeroIV>()
             .ActivateOnEnter<StaticMoon>()
             .ActivateOnEnter<ForbiddenFruitPreview>()
             .ActivateOnEnter<StymphalianStrike>()
