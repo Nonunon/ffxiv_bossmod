@@ -18,6 +18,7 @@ public enum AID : uint
     SpokenCataractHead1 = 26616, // CataractHead->self, 7.0s cast, range 60 180-degree cone
     SpokenCataractHead2 = 26617, // CataractHead->self, 7.0s cast, range 60 180-degree cone
     SpokenCataractBoss = 26621, // Boss->self, 7.0s cast, range 100 width 15 rect
+    SpokenCataractBoss2 = 26622, // Boss->self, 7.0s cast, range 100 width 15 rect (same as 26621 in the sheet; not seen in any log yet)
     CoherenceFlare = 26624, // CataractHead->location, no cast, range 60 circle with falloff
     Coherence = 26625, // Boss->self, 5.0s cast, single-target
     CoherenceRay = 26626, // Boss->self, no cast, range 60 width 6 rect, shared
@@ -55,6 +56,7 @@ class SpokenCataractHead3(BossModule module) : Components.StandardAOEs(module, A
 class SpokenCataractHead1(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead1, new AOEShapeCone(60, 90.Degrees()));
 class SpokenCataractHead2(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractHead2, new AOEShapeCone(60, 90.Degrees()));
 class SpokenCataractBoss(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractBoss, new AOEShapeRect(100, 7.5f));
+class SpokenCataractBoss2(BossModule module) : Components.StandardAOEs(module, AID.SpokenCataractBoss2, new AOEShapeRect(100, 7.5f));
 class DissociationAOE(BossModule module) : Components.StandardAOEs(module, AID.DissociationAOE, new AOEShapeRect(50, 10));
 class TaintedFlood(BossModule module) : Components.SpreadFromCastTargets(module, AID.TaintedFloodAOE, 6);
 class DoubledImpact(BossModule module) : Components.CastSharedTankbuster(module, AID.DoubledImpact, 6);
@@ -138,6 +140,7 @@ class P2NHippokamposStates : StateMachineBuilder
             .ActivateOnEnter<SpokenCataractHead1>()
             .ActivateOnEnter<SpokenCataractHead2>()
             .ActivateOnEnter<SpokenCataractBoss>()
+            .ActivateOnEnter<SpokenCataractBoss2>()
             .ActivateOnEnter<DissociationAOE>()
             .ActivateOnEnter<TaintedFlood>()
             .ActivateOnEnter<DoubledImpact>()
@@ -156,6 +159,7 @@ class P2NHippokamposStates : StateMachineBuilder
 public class P2NHippokampos(ModuleInit init) : BossModule(init, new(100, 100), DefaultBounds)
 {
     // not a square: the death wall in combat killed at x 82.0-82.4 / 117.5 (17.5-18 from the centre) while players lived at z 76.9 and 122.5;
-    // a 35x45 rectangle keeps the player's centre inside (wall probes on 2026-11-15, plus a mid-fight death at x 82.0)
+    // a 35x45 rectangle keeps the player's centre inside (wall probes on 2026-11-15, plus a mid-fight death at x 82.0). the physical walls
+    // before the pull are 39x49 (players stopped at x 81.0 and z 124.0, plus hitbox); the module uses the death wall throughout
     public static readonly ArenaBoundsRect DefaultBounds = new(17.5f, 22.5f);
 }
