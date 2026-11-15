@@ -13,10 +13,10 @@ public enum OID : uint
 public enum AID : uint
 {
     AutoAttack = 872, // Boss->player, no cast, single-target
-    GaolersFlailLR = 26073, // Boss->self, 8.0+1.0s cast, range 60 270-degree cone
-    GaolersFlailRL = 26074, // Boss->self, 8.0+1.0s cast, range 60 270-degree cone
-    AetherflailLR = 26079, // Boss->self, 8.0+1.0s cast, range 60 270-degree cone, then aether explosion
-    AetherflailRL = 26080, // Boss->self, 8.0+1.0s cast, range 60 270-degree cone, then aether explosion
+    GaolersFlailLR = 26073, // Boss->self, 8.0+1.0s cast, range 60 270-degree cone (P1S shape; never does damage in Normal)
+    GaolersFlailRL = 26074, // Boss->self, 8.0+1.0s cast, range 60 270-degree cone (never does damage in Normal)
+    AetherflailLR = 26079, // Boss->self, 8.0+1.0s cast, (as above), then aether explosion
+    AetherflailRL = 26080, // Boss->self, 8.0+1.0s cast, (as above), then aether explosion
     PitilessFlail = 26085, // Boss->player, 5.0s cast, range 60 width 6 rect, knockback
     TrueHolyVisual = 26086, // Boss->self, no cast, single-target
     TrueHoly = 26087, // Helper->players, no cast, range 6 circle stack
@@ -29,7 +29,7 @@ public enum AID : uint
     IntemperateTorment = 26095, // Boss->self, 6.0s cast, single-target
     HotSpellFirst = 26096, // Helper->self, 1.5s cast, range 19 width 19 rect
     ColdSpellFirst = 26097, // Helper->self, 1.5s cast, range 19 width 19 rect
-    PainfulFlux = 26098, // Helper->self, no cast, range 0 ???
+    PainfulFlux = 26098, // Helper->self, no cast, kills anyone in the 2y cross between the quadrants, 0.1s after each wave
     HeavyHand = 26099, // Boss->player, 5.0s cast, single-target
     WardersWrath = 26100, // Boss->self, 5.0s cast, range 60 circle
     Teleport = 26101, // Boss->location, no cast, single-target
@@ -54,32 +54,10 @@ public enum IconID : uint
     HeavyHand = 218, // player
 }
 
-class Flails(BossModule module) : Components.GenericAOEs(module)
-{
-    private static readonly AOEShapeCone _first = new(60, 135.Degrees());
-    private static readonly AOEShapeCone _second = new(60, 90.Degrees());
-    private readonly List<AOEInstance> _aoes = [];
-
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes;
-
-    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
-    {
-        if ((AID)spell.Action.ID is AID.GaolersFlailLR or AID.GaolersFlailRL or AID.AetherflailLR or AID.AetherflailRL)
-        {
-            _aoes.Add(new(_first, caster.Position, spell.Rotation, Module.CastFinishAt(spell)));
-            _aoes.Add(new(_second, caster.Position, spell.Rotation, Module.CastFinishAt(spell, 0.7f)));
-        }
-    }
-
-    public override void OnEventCast(Actor caster, ActorCastEvent spell)
-    {
-        if ((AID)spell.Action.ID is AID.GaolersFlailLR or AID.GaolersFlailRL or AID.AetherflailLR or AID.AetherflailRL or AID.GaolersFlailR2 or AID.GaolersFlailL2 && _aoes.Count > 0)
-        {
-            ++NumCasts;
-            _aoes.RemoveAt(0);
-        }
-    }
-}
+// the boss's own 270-degree hit never does damage in Normal (24 hits over two logs, all 0); only the helper's 180-degree cone on the cast
+// heading ~0.7s later hurts, so that's the only one shown
+class Flails(BossModule module) : Components.StandardAOEs(module, AID.GaolersFlailR2, new AOEShapeCone(60, 90.Degrees()));
+class FlailsL(BossModule module) : Components.StandardAOEs(module, AID.GaolersFlailL2, new AOEShapeCone(60, 90.Degrees()));
 
 class AetherExplosion(BossModule module) : Components.GenericAOEs(module, AID.PowerfulFire)
 {
@@ -140,14 +118,41 @@ class AetherExplosion(BossModule module) : Components.GenericAOEs(module, AID.Po
     }
 }
 
-// TODO: knockback distance is unmeasured, the Reborn logs don't track it
 class PitilessFlail(BossModule module) : Components.BaitAwayCast(module, AID.PitilessFlail, new AOEShapeRect(60, 3));
+
+// the target is knocked 11y straight out along the line (measured twice)
+class PitilessFlailKnockback(BossModule module) : Components.Knockback(module, AID.PitilessFlail)
+{
+    private Actor? _caster;
+
+    public override IEnumerable<Source> Sources(int slot, Actor actor)
+    {
+        if (_caster?.CastInfo is { } ci && ci.TargetID == actor.InstanceID)
+            yield return new(_caster.Position, 11, Module.CastFinishAt(ci));
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.PitilessFlail)
+            _caster = caster;
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.PitilessFlail)
+            _caster = null;
+    }
+}
 class TrueHoly(BossModule module) : Components.StackWithIcon(module, (uint)IconID.TrueHoly, AID.TrueHoly, 6, 5.1f);
 
+// each wave hits all four 19x19 quadrants (x/z 80-99 and 101-120); being hit by your own temperature gives a vuln and big damage, and
+// Painful Flux kills anyone left in the 2y cross between them 0.1s later. the cubes give wave 1 early (its casts only start 1.2s before);
+// waves 2-3 come from the casts (3.7s), since in one round all four wave-3 quadrants were the opposite of their cubes
 class Intemperance(BossModule module) : Components.GenericAOEs(module)
 {
-    private static readonly AOEShapeRect _quadrant = new(10, 10, 10);
-    private static readonly WPos[] _centers = [new(110, 110), new(90, 110), new(90, 90), new(110, 90)];
+    private static readonly AOEShapeRect _quadrant = new(9.5f, 9.5f, 9.5f);
+    private static readonly AOEShapeCross _cross = new(20, 1.5f);
+    private static readonly WPos[] _centers = [new(110.5f, 110.5f), new(89.5f, 110.5f), new(89.5f, 89.5f), new(110.5f, 89.5f)];
     private readonly bool?[] _hot = new bool?[12];
     private int _wave;
     private DateTime _next;
@@ -159,10 +164,12 @@ class Intemperance(BossModule module) : Components.GenericAOEs(module)
     {
         if (!_active || _wave >= 3)
             yield break;
-        bool? hot = actor.FindStatus(SID.HotSpell) != null ? true : actor.FindStatus(SID.ColdSpell) != null ? false : null;
-        if (hot == null)
-            yield break;
         var casting = _casts.Any(c => c != null);
+        if (casting || _wave == 0)
+            yield return new(_cross, Arena.Center, default, _next.AddSeconds(0.1f));
+        bool? hot = actor.FindStatus(SID.HotSpell) != null ? true : actor.FindStatus(SID.ColdSpell) != null ? false : null;
+        if (hot == null || !casting && _wave > 0)
+            yield break;
         for (var q = 0; q < 4; ++q)
             if ((casting ? _casts[q] : _hot[3 * q + _wave]) == hot)
                 yield return new(_quadrant, _centers[q], default, _next);
@@ -255,8 +262,10 @@ class P1NErichthoniosStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<ArenaChanges>()
             .ActivateOnEnter<Flails>()
+            .ActivateOnEnter<FlailsL>()
             .ActivateOnEnter<AetherExplosion>()
             .ActivateOnEnter<PitilessFlail>()
+            .ActivateOnEnter<PitilessFlailKnockback>()
             .ActivateOnEnter<TrueHoly>()
             .ActivateOnEnter<Intemperance>()
             .ActivateOnEnter<ShiningCells>()
