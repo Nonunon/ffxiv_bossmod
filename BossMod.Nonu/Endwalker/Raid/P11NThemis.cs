@@ -87,11 +87,6 @@ class EmissarysWill(BossModule module) : Components.RaidwideCast(module, AID.Emi
 class Eunomia(BossModule module) : Components.RaidwideCast(module, AID.Eunomia, "Raidwide + bleed");
 class DikeAOE1(BossModule module) : Components.SingleTargetCast(module, AID.DikeAOE1);
 class DikeAOE2(BossModule module) : Components.SingleTargetCast(module, AID.DikeAOE2);
-// Inner Light / Outer Dark are already casting during the knockback but land ~3.5s later, so only the wall (and, during
-// Dark and Light, leaving your own sigil) counts as an unsafe landing; otherwise every landing is unsafe and the AI stands still.
-// the wall kills on contact and pushes vary, so landings past 18.5 count as the wall (an AST died landing at 18.9).
-// the push is ~11y; during Dark and Light only a few yalms between your sigil's centre and the middle both stay in the sigil
-// and land in it, so a goal holds the AI 5y from the sigil centre towards the middle until the push lands
 class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCastTarget(module, aid, 11)
 {
     private const float MaxLanding = 18.5f;
@@ -126,13 +121,10 @@ class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCast
 }
 class DismissalRulingLight(BossModule module) : DismissalRuling(module, AID.DismissalRulingLightAOE);
 
-// dark: knocked out, then back inside 8y before Outer Dark; until the push lands, a goal near the middle keeps the AI by the boss
-// (afterwards Outer Dark's own zone brings it back in)
 class DismissalRulingDark(BossModule module) : DismissalRuling(module, AID.DismissalRulingDarkAOE)
 {
     protected override bool PullToCenter => true;
 }
-// hits at 12.6/12.8 and safe at 13.2 (solo PLD), so the sheet's 13 is right
 class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 13);
 class OuterDark(BossModule module) : Components.StandardAOEs(module, AID.OuterDark, new AOEShapeDonut(8, 50));
 class Lightburst(BossModule module) : Components.StandardAOEs(module, AID.LightburstAOE, 13);
@@ -140,8 +132,6 @@ class DarkPerimeter(BossModule module) : Components.StandardAOEs(module, AID.Dar
 class Dineis(BossModule module) : Components.StandardAOEs(module, AID.DineisAOE, 4);
 class BlindingLight(BossModule module) : Components.SpreadFromCastTargets(module, AID.BlindingLightAOE, 6);
 
-// lines from the boss or a clone: first a 16y-wide line, then either a 26y-wide one (light) or the two lanes beside it (dark)
-// the wide one is shown together with the first line; the lanes only after it, since line + lanes would cover everything
 class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeRect _narrow = new(46, 8);
@@ -179,7 +169,6 @@ class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// dark: a 13y tankbuster on the tethered tank, then a donut at that spot to step into
 class UpheldRulingDark(BossModule module) : Components.GenericBaitAway(module, AID.UpheldRulingDarkAOE, centerAtTarget: true, damageType: AIHints.PredictedDamageType.Tankbuster)
 {
     private static readonly AOEShapeCircle _shape = new(13);
@@ -198,7 +187,6 @@ class UpheldRulingDark(BossModule module) : Components.GenericBaitAway(module, A
     }
 }
 
-// light: a 6y party stack on the tethered player, then a 13y circle at that spot to run out of
 class UpheldRulingLight(BossModule module) : Components.UniformStackSpread(module, 6, 0, 4)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -214,7 +202,6 @@ class UpheldRulingLight(BossModule module) : Components.UniformStackSpread(modul
     }
 }
 
-// five hits about 1.1s apart on the same stack target
 class Styx(BossModule module) : Components.UniformStackSpread(module, 6, 0, 4)
 {
     private int _hits;
@@ -235,14 +222,12 @@ class Styx(BossModule module) : Components.UniformStackSpread(module, 6, 0, 4)
     }
 }
 
-// discord turns into accord while standing in the matching sigil circle: light west, dark east, both 8y around (88,100) / (112,100)
-// (fit to every position sample with its accord/discord status over five pulls); leaving it turns it back, and katakrisis hits anyone in discord every few seconds
 class DarkAndLight(BossModule module) : BossComponent(module)
 {
     private const float SafeMargin = 1.5f;
     private static readonly (WPos center, float radius) _lightSigil = (new(88, 100), 8);
     private static readonly (WPos center, float radius) _darkSigil = (new(112, 100), 8);
-    private readonly int[] _side = new int[PartyState.MaxPartySize]; // -1 light, +1 dark, 0 none
+    private readonly int[] _side = new int[PartyState.MaxPartySize];
     private bool _active;
 
     private static (WPos center, float radius) SigilAt(int side) => side < 0 ? _lightSigil : _darkSigil;

@@ -81,7 +81,6 @@ class Decollation(BossModule module) : Components.RaidwideCast(module, AID.Decol
 class HellSkewer(BossModule module) : Components.StandardAOEs(module, AID.HellSkewer, new AOEShapeRect(60, 3));
 class ShiftingStrikeSword(BossModule module) : Components.StandardAOEs(module, AID.ShiftingStrikeSword, new AOEShapeCone(60, 60.Degrees()));
 class ShiftingStrikeCloak(BossModule module) : Components.KnockbackFromCastTarget(module, AID.ShiftingStrikeCloak, 23);
-// the shift cast names the side the strike comes from; the arena already shows it, this only spells it out
 class ShiftDirection(BossModule module) : BossComponent(module)
 {
     private string? _hint;
@@ -120,12 +119,10 @@ class ShiftDirection(BossModule module) : BossComponent(module)
 class AcidMekhane(BossModule module) : Components.SpreadFromCastTargets(module, AID.AcidMekhane, 5);
 class LavaMekhane(BossModule module) : Components.StackWithCastTargets(module, AID.LavaMekhane, 6);
 
-// setting the scene places element tiles (env control index 5 + 4 * element + corner); the middle of a placed tile gives its element's debuff
-// until that tile's pinax resolves (state 0x02000001), even though the tile stays up a few seconds longer
 class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle Shape = new(2.5f);
-    private readonly bool[] _placed = new bool[4]; // NE, SE, SW, NW
+    private readonly bool[] _placed = new bool[4];
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
@@ -149,7 +146,6 @@ class PinaxTileCenters(BossModule module) : Components.GenericAOEs(module)
     });
 }
 
-// levinstrike damage falls off with distance from the center: about 18k at 18y, 11k at 20y, 5-7k in the corners
 class LevinstrikeMekhane(BossModule module) : Components.GenericAOEs(module, AID.LevinstrikeMekhane, "Go to a corner!")
 {
     private static readonly AOEShapeCircle Shape = new(20);
@@ -170,7 +166,6 @@ class LevinstrikeMekhane(BossModule module) : Components.GenericAOEs(module, AID
     }
 }
 
-// well pinax ends with a knockback from the arena center
 class WellMekhane(BossModule module) : Components.Knockback(module, AID.WellMekhane)
 {
     private DateTime _activation;
@@ -194,7 +189,6 @@ class WellMekhane(BossModule module) : Components.Knockback(module, AID.WellMekh
     }
 }
 
-// each tower bans one role; soaking the wrong one hurts a lot
 class BeloneCoils(BossModule module) : Components.GenericTowers(module)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -220,8 +214,6 @@ class BeloneCoils(BossModule module) : Components.GenericTowers(module)
     }
 }
 
-// each orb is tethered to a player of its own role and explodes on the first player it touches; touching an orb of your own role
-// (or any orb at 2 ruin stacks) is very heavy damage (90k on a tank in one pull), so someone of another role has to intercept it
 class BeloneBursts(BossModule module) : BossComponent(module)
 {
     private const float PopRadius = 2.5f;

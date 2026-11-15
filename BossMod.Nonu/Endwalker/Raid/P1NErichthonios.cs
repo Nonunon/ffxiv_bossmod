@@ -54,8 +54,6 @@ public enum IconID : uint
     HeavyHand = 218, // player
 }
 
-// the boss's own 270-degree hit never does damage in Normal (24 hits over two logs, all 0); only the helper's 180-degree cone on the cast
-// heading ~0.7s later hurts, so that's the only one shown
 class Flails(BossModule module) : Components.StandardAOEs(module, AID.GaolersFlailR2, new AOEShapeCone(60, 90.Degrees()));
 class FlailsL(BossModule module) : Components.StandardAOEs(module, AID.GaolersFlailL2, new AOEShapeCone(60, 90.Degrees()));
 
@@ -120,7 +118,6 @@ class AetherExplosion(BossModule module) : Components.GenericAOEs(module, AID.Po
 
 class PitilessFlail(BossModule module) : Components.BaitAwayCast(module, AID.PitilessFlail, new AOEShapeRect(60, 3));
 
-// the target is knocked 11y straight out along the line (measured twice)
 class PitilessFlailKnockback(BossModule module) : Components.Knockback(module, AID.PitilessFlail)
 {
     private Actor? _caster;
@@ -145,9 +142,6 @@ class PitilessFlailKnockback(BossModule module) : Components.Knockback(module, A
 }
 class TrueHoly(BossModule module) : Components.StackWithIcon(module, (uint)IconID.TrueHoly, AID.TrueHoly, 6, 5.1f);
 
-// each wave hits all four 19x19 quadrants (x/z 80-99 and 101-120); being hit by your own temperature gives a vuln and big damage, and
-// Painful Flux kills anyone left in the 2y cross between them 0.1s later. the cubes give wave 1 early (its casts only start 1.2s before);
-// waves 2-3 come from the casts (3.7s), since in one round all four wave-3 quadrants were the opposite of their cubes
 class Intemperance(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeRect _quadrant = new(9.5f, 9.5f, 9.5f);

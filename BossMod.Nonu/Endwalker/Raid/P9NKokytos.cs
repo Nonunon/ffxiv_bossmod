@@ -101,13 +101,9 @@ public enum TetherID : uint
 class GluttonysAugur(BossModule module) : Components.RaidwideCast(module, AID.GluttonysAugur);
 class GlobalSpell(BossModule module) : Components.RaidwideCast(module, AID.GlobalSpell);
 class BeastlyRoar(BossModule module) : Components.RaidwideCast(module, AID.BeastlyRoar);
-// the roar after charybdis also knocks everyone about 10y away from the boss, which can throw people into the charybdis puddles
 class BeastlyRoarKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.BeastlyRoar, 10);
 class GluttonousRampage(BossModule module) : Components.CastHint(module, AID.GluttonousRampage, "Tankbusters on tethered tanks");
 
-// the boss bites whoever holds a rampage tether, twice. the tether starts too close (57) and turns into the stretched one (1) somewhere
-// between ~12.3y and ~15.1y from the boss: drawn red until stretched, green after. the AI holding either kind keeps 15y from the boss for as
-// long as it has the tether; dropping the zone once stretched let movement presets pull it back in, flipping the tether every ~0.5s
 class GluttonousRampageTethers(BossModule module) : BossComponent(module)
 {
     private const float StretchRadius = 15;
@@ -148,7 +144,6 @@ class GluttonousRampageTethers(BossModule module) : BossComponent(module)
 
     public override void OnUntethered(Actor source, in ActorTetherInfo tether)
     {
-        // a tether switching kind is an untether + tether; only drop it if it still holds the kind being removed
         if (tether.ID is (uint)TetherID.RampageStretched or (uint)TetherID.RampageTooClose && _tethers.TryGetValue(source.InstanceID, out var t) && t.stretched == (tether.ID == (uint)TetherID.RampageStretched))
             _tethers.Remove(source.InstanceID);
     }
@@ -158,7 +153,6 @@ class FireIIIBig(BossModule module) : Components.SpreadFromCastTargets(module, A
 class BlizzardIIIIn(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIIn, new AOEShapeDonut(8, 30));
 class BlizzardIIIOut(BossModule module) : Components.StandardAOEs(module, AID.BlizzardIIIOut, new AOEShapeDonut(14, 30));
 class ArchaicRockbreaker(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreaker, 6);
-// the rockbreaker cast ends in a shockwave about 1.85s later that pushes everyone about 10y out from the centre (9-9.4y measured)
 class Shockwave(BossModule module) : Components.Knockback(module, AID.Shockwave)
 {
     private DateTime _activation;
@@ -191,7 +185,6 @@ class Charybdis(BossModule module) : Components.SpreadFromCastTargets(module, AI
 class CharybdisPuddle(BossModule module) : Components.Voidzone(module, 6, (uint)OID.CharybdisPuddle);
 class BeastlyBile(BossModule module) : Components.SpreadFromCastTargets(module, AID.BeastlyBileAOE, 6);
 class PulverizingPounce(BossModule module) : Components.StackWithCastTargets(module, AID.PulverizingPounce, 6);
-// the 13s marker starts together with gluttonous rampage; it's only shown for its last 5s, after the first bite
 class TouchdownMarker(BossModule module) : Components.ProximityAOEs(module, AID.TouchdownMarker, 15)
 {
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => base.ActiveAOEs(slot, actor).Where(a => a.Activation <= WorldState.FutureTime(5));
@@ -203,7 +196,6 @@ class FireSphereBig(BossModule module) : Components.StandardAOEs(module, AID.Fir
 class IceSphereSmall(BossModule module) : Components.StandardAOEs(module, AID.IceSphereSmall, 8);
 class IceSphereBig(BossModule module) : Components.StandardAOEs(module, AID.IceSphereBig, 16);
 
-// six circles land in each of two waves 5s apart; only the earlier wave is shown so the AI doesn't try to dodge both at once
 class ArchaicRockbreakerWaves(BossModule module) : Components.StandardAOEs(module, AID.ArchaicRockbreakerAOE, 8)
 {
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
@@ -216,7 +208,6 @@ class ArchaicRockbreakerWaves(BossModule module) : Components.StandardAOEs(modul
     }
 }
 
-// in (12y circle) or out (8-20 donut) around the boss, then a 180-degree kick to its front or back about 2s later; both shown at once
 class Combination(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _in = new(12);
@@ -253,7 +244,6 @@ class Combination(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// two of the three comets change model and burst; the one that stays blocks the meteor from the centre
 class EclipticMeteor(BossModule module) : Components.GenericLineOfSightAOE(module, AID.EclipticMeteorAOE, 60, false)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

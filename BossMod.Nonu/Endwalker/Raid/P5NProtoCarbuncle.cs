@@ -74,7 +74,6 @@ class SonicHowl(BossModule module) : Components.RaidwideCast(module, AID.SonicHo
 class AcidicSlaver(BossModule module) : Components.RaidwideCast(module, AID.AcidicSlaver);
 class Impact(BossModule module) : Components.StandardAOEs(module, AID.Impact, 6);
 
-// a stone 1y from a wall faces it, and its circle stops at the wall; drawn as a half circle from the wall point
 class TopazRayBent(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCone Shape = new(5, 90.Degrees());
@@ -82,7 +81,6 @@ class TopazRayBent(BossModule module) : Components.GenericAOEs(module)
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes.Select(a => a.aoe);
 
-    // a bent ray inside a light cell isn't drawn (the cell hits there 0.5s later anyway), but the AI still avoids it since it lands first
     public override void DrawArenaBackground(int pcSlot, Actor pc)
     {
         var cells = Module.FindComponent<RubyReflectionQuadrant>()?.ActiveAOEs(pcSlot, pc).ToList() ?? [];
@@ -104,7 +102,6 @@ class TopazRayBent(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// with a diagonal wall up, searing ray hits the whole half of the arena on the boss's side of the wall (the boss faces the center from a corner)
 class SearingRayCage(BossModule module) : Components.GenericAOEs(module, AID.SearingRayCage)
 {
     private static readonly AOEShapeRect Shape = new(45, 45);
@@ -119,8 +116,6 @@ class SearingRayCage(BossModule module) : Components.GenericAOEs(module, AID.Sea
             _aoe = new(Shape, Module.Center, Angle.FromDirection(caster.Position - Module.Center), Module.CastFinishAt(spell, 0.5f));
     }
 
-    // the ray's reflection bounces twice (~0.35s and ~0.67s after it), and a pair from the previous ray bounces just after this cast starts,
-    // so the zone ends by time, after the last bounce
     public override void Update()
     {
         if (_aoe is var aoe && aoe != null && WorldState.CurrentTime > aoe.Value.Activation.AddSeconds(1.2f))
@@ -128,8 +123,6 @@ class SearingRayCage(BossModule module) : Components.GenericAOEs(module, AID.Sea
     }
 }
 
-// the ray reflecting off the wall: hits the half of the arena in its cast direction from the centre, then twice more (bounces ~0.35s and ~0.67s later).
-// a reflection on the same half as a live cage isn't drawn twice: the cage zone already covers it and lasts until the bounce
 class RubyReflection(BossModule module) : Components.GenericAOEs(module, AID.SearingRayCageReflection)
 {
     private static readonly AOEShapeRect Shape = new(45, 45);
@@ -159,8 +152,6 @@ class RubyReflection(BossModule module) : Components.GenericAOEs(module, AID.Sea
     }
 }
 
-// each cell of light hits twice more after the cast ends (0.3s and 0.7s later), so it stays until the second repeat.
-// in the four-cell version the casts start 2s apart, so only the first three are shown; the fourth appears once the first is gone
 class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module, AID.RubyReflectionQuadrant)
 {
     private static readonly AOEShapeRect Shape = new(15, 7.5f);
@@ -196,9 +187,6 @@ class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module,
     }
 }
 
-// a stone turning poisonous gets a poison puddle about 5s later, which grows from 5y to 12y and stays until the stone goes dormant again.
-// only the puddle as it is now is drawn; the AI also avoids a hidden circle 2y ahead of it (capped at full size), so it stays ahead without
-// being sent out to the full 12y early
 class PoisonStones(BossModule module) : Components.GenericAOEs(module)
 {
     private const float StartRadius = 5;
@@ -222,7 +210,6 @@ class PoisonStones(BossModule module) : Components.GenericAOEs(module)
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
-        // add extra margin to prevent safe-dash function from moving player into growing puddle
         foreach (var s in _stones)
             if (RadiusAt(s.activation, WorldState.CurrentTime) < MaxRadius)
                 hints.AddForbiddenZone(new AOEShapeCircle(LeadRadius(s.activation)), s.stone.Position, default, DateTime.MaxValue);
@@ -239,8 +226,6 @@ class PoisonStones(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// a marker runs the boss's jump path first; then the boss jumps along it about 1.05s apart, each landing a 12y circle, and devours whoever the
-// last one hit. the next three jumps are real zones with their own timings, so the AI finds the spot the later ones can't reach itself
 class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.StarvingStampede)
 {
     private const float Radius = 12;
@@ -249,8 +234,8 @@ class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.S
     private static readonly AOEShapeCircle Shape = new(Radius);
     private readonly List<WPos> _path = [];
     private int _numJumps;
-    private DateTime _nextJump; // estimate for the next landing when no cast for it is running yet
-    private readonly List<DateTime> _casts = []; // finish times of jump casts already started (they overlap)
+    private DateTime _nextJump;
+    private readonly List<DateTime> _casts = [];
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
@@ -289,7 +274,6 @@ class StarvingStampede(BossModule module) : Components.GenericAOEs(module, AID.S
         {
             case AID.StampedeMarkerMove:
                 _path.Add(spell.TargetXZ);
-                // spots show as the marker reaches them; the marker moves every ~1.55s and the first landing comes ~7.3s after its last move
                 _nextJump = WorldState.FutureTime(7.3f + MarkerInterval * Math.Max(0, Module.Enemies(OID.StampedeSpot).Count(s => !s.IsDestroyed) - _path.Count));
                 break;
             case AID.StarvingStampede:

@@ -87,7 +87,6 @@ class RearingRampage(BossModule module) : Components.RaidwideCast(module, AID.Re
 class HemitheossFlare(BossModule module) : Components.SpreadFromCastTargets(module, AID.HemitheossFlareAOE, 6);
 class Flameviper(BossModule module) : Components.BaitAwayCast(module, AID.Flameviper, new AOEShapeRect(60, 2.5f));
 
-// each gorgon's petrifaction gaze goes off about 1.5s after its cast ends
 class Petrifaction(BossModule module) : Components.GenericGaze(module, AID.PetrifactionAOE)
 {
     private readonly List<Eye> _eyes = [];
@@ -110,7 +109,6 @@ class Petrifaction(BossModule module) : Components.GenericGaze(module, AID.Petri
     }
 }
 
-// the first vents are known from tethers 4s before their casts; each suneater then jumps 30y (or 42.4y diagonally) along its facing to the next one
 class ChthonicVent(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _shape = new(23);
@@ -156,8 +154,6 @@ class ChthonicVent(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// centaur: the boss charges along a line through the arena, knocking everyone 10y sideways away from it, then lands on each marked spot
-// in order (a marker cast announces each one), knocking everyone 20y away from it; all three are shown chained
 class BlazingFootfalls(BossModule module) : Components.Knockback(module)
 {
     private static readonly AOEShapeRect _side = new(21, 10.5f, 21);
@@ -176,10 +172,6 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
             yield return new(s.pos, 20, s.activation);
     }
 
-    // the base hints test each knockback from where you stand now; here each step is tested from where the previous ones put you.
-    // landings really throw 20-22y, so the AI keeps every step 3y off the wall.
-    // the lane is a goal on top of that: the charge line first, then 3.5y off it on the side of the first landing spot that's off the
-    // line (the charge pushes you 10y towards it and its knockback throws you back across the middle instead of into a wall)
     private const float LaneHalfWidth = 1.5f;
     private const float LaneOffset = 3.5f;
     private const float WallMargin = 3;
@@ -208,7 +200,7 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
                 foreach (var s in steps)
                 {
                     var moved = CalculateMovement(s, p);
-                    p = WVec.Select(moved.IsValid(), moved, p); // outside this source's shape: not moved
+                    p = WVec.Select(moved.IsValid(), moved, p);
                 }
                 return isUnsafe(p);
             }), steps[^1].Activation);

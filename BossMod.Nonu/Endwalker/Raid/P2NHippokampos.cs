@@ -89,7 +89,6 @@ class CoherenceRay(BossModule module) : Components.SimpleLineStack(module, 3, 60
     }
 }
 
-// partner within 3.3y was always safe, 4.9y always failed; 4 let the AI stand too far apart (Nonu took the hit), so 3
 class PredatorySight(BossModule module) : Components.StackTogether(module, (uint)IconID.PredatorySight, 4.9f, 3);
 
 // TODO: distance is estimated, players near the landing spot ended 13-16y away
@@ -158,8 +157,5 @@ class P2NHippokamposStates : StateMachineBuilder
 [ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 810, NameID = 10348, PlanLevel = 90, Incomplete = true)]
 public class P2NHippokampos(ModuleInit init) : BossModule(init, new(100, 100), DefaultBounds)
 {
-    // not a square: the death wall in combat killed at x 82.0-82.4 / 117.5 (17.5-18 from the centre) while players lived at z 76.9 and 122.5;
-    // a 35x45 rectangle keeps the player's centre inside (wall probes on 2026-11-15, plus a mid-fight death at x 82.0). the physical walls
-    // before the pull are 39x49 (players stopped at x 81.0 and z 124.0, plus hitbox); the module uses the death wall throughout
     public static readonly ArenaBoundsRect DefaultBounds = new(17.5f, 22.5f);
 }

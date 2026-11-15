@@ -54,12 +54,10 @@ public enum IconID : uint
     HemitheossAeroII = 364, // player
 }
 
-// damage falls off with distance from the centre: 90k at 7.6 (unsynced lv100 PLD), 40-60k at 13.5-14, ~22k at 16, near 0 past 17
 class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.ImmortalsObolAOE, 15)
 {
     private static readonly AOEShapeCircle _margin = new(16);
 
-    // hidden 1y safety net past the drawn 15y
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
@@ -68,10 +66,6 @@ class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.Im
     }
 }
 
-// late in the fight (three platforms): a 25y knockback away from one platform's centre (landed twice at 24.8 and 25.0; the earlier falls
-// stopped short because sideways motion ends on the drop). a spot only counts as safe if both a 24y and a 26y push land on a platform:
-// on the source platform near its centre, towards another platform. the moons and birds cast with it land ~3s later, so only falling
-// off counts as a bad landing; their own zones move the AI on afterwards
 class HemitheossAeroIV(BossModule module) : Components.Knockback(module, AID.HemitheossAeroIVAOE, maxCasts: 1)
 {
     private static readonly float[] _distances = [24, 26];
@@ -106,7 +100,6 @@ class BoughOfAttisSide(BossModule module) : Components.StandardAOEs(module, AID.
 {
     private static readonly AOEShapeRect _margin = new(50, 12.8f);
 
-    // the knockback is lethal, so the AI also keeps 0.3y off the edge (hidden)
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
@@ -118,13 +111,11 @@ class BoughOfAttisSideKnockback(BossModule module) : Components.KnockbackFromCas
 class BoughOfAttisBack(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisBackAOE, 25);
 class StaticMoon(BossModule module) : Components.StandardAOEs(module, AID.StaticMoon, 10);
 
-// the Ios and birds wait stacked on a parking spot and teleport into place, already facing their target, 5.7-11.4s before they cast;
-// their moon / line is drawn (not as an AI zone) from then until the real cast starts
 class ForbiddenFruitPreview(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _moon = new(10);
     private static readonly AOEShapeRect _line = new(60, 4);
-    private const float LeadToHit = 10.5f; // teleport -> cast start ~5.7s, cast 4.7s
+    private const float LeadToHit = 10.5f;
     private readonly Dictionary<ulong, (WPos pos, DateTime moved, bool pending)> _state = [];
     private readonly Dictionary<uint, WPos> _parking = [];
 
@@ -132,8 +123,6 @@ class ForbiddenFruitPreview(BossModule module) : Components.GenericAOEs(module)
     {
         foreach (var a in Module.Enemies(OID.ImmatureIo).Concat(Module.Enemies(OID.ImmatureStymphalide)))
             if (_state.TryGetValue(a.InstanceID, out var st) && st.pending && a.CastInfo == null)
-                // draw only: the wait before the cast varies (5.7s early on, 11.4s late), and a guessed time made the AI dodge too early
-                // (it blocked the only safe spot for Aero IV's knockback); the AI reacts to the real 4.7s cast instead
                 yield return new((OID)a.OID == OID.ImmatureIo ? _moon : _line, a.Position, a.Rotation, st.moved.AddSeconds(LeadToHit), Risky: false);
     }
 
@@ -142,7 +131,7 @@ class ForbiddenFruitPreview(BossModule module) : Components.GenericAOEs(module)
         foreach (var a in Module.Enemies(OID.ImmatureIo).Concat(Module.Enemies(OID.ImmatureStymphalide)))
         {
             if (!_parking.ContainsKey(a.OID))
-                _parking[a.OID] = a.Position; // they all start stacked on it
+                _parking[a.OID] = a.Position;
             if (!_state.TryGetValue(a.InstanceID, out var st))
                 _state[a.InstanceID] = (a.Position, default, false);
             else if (!a.Position.AlmostEqual(st.pos, 1))
@@ -161,9 +150,6 @@ class HemitheossHoly(BossModule module) : Components.SpreadFromCastTargets(modul
 class HemitheossAeroII(BossModule module) : Components.BaitAwayCast(module, AID.HemitheossAeroIIAOE, new AOEShapeCircle(8), true);
 class SparkOfLife(BossModule module) : Components.RaidwideCast(module, AID.SparkOfLife);
 
-// 8 explosions, 7y apart, about 1.25s between them. drawn as usual (next one imminent, two more as warning), but the AI knows every
-// remaining explosion of each line with its own timing, 7.5y wide (hits landed at 7.1-7.4, the hitbox): with only three known it ran
-// onto the platform the lines were heading for and got caught; with the whole path it can pick the bridge no line crosses
 class BladesOfAttis(BossModule module) : Components.Exaflare(module, 7)
 {
     private static readonly AOEShapeCircle _margin = new(7.5f);
@@ -206,7 +192,6 @@ class BladesOfAttis(BossModule module) : Components.Exaflare(module, 7)
     }
 }
 
-// towers appear with the static moons; they go off 9.7s later, after the moons, and hit the whole party if left empty
 class Towers(BossModule module) : Components.GenericTowers(module, AID.Burst)
 {
     public override void OnActorCreated(Actor actor)
@@ -215,7 +200,6 @@ class Towers(BossModule module) : Components.GenericTowers(module, AID.Burst)
             Towers.Add(new(actor.Position, 5, 1, 2, default, WorldState.FutureTime(9.7f)));
     }
 
-    // an empty tower goes off as Big Burst instead; the tower objects despawn ~1.4s later either way
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         if ((AID)spell.Action.ID is AID.Burst or AID.BigBurst)
@@ -232,8 +216,6 @@ class Towers(BossModule module) : Components.GenericTowers(module, AID.Burst)
     }
 }
 
-// immortal's obol swaps the big platform for three small ones (P7S layout), then bridges join them; the big one comes back later
-// the part of the big platform that falls away is shown from the start of the cast
 class Platforms(BossModule module) : Components.GenericAOEs(module)
 {
     public const float SmallRadius = 10;
@@ -272,14 +254,14 @@ class Platforms(BossModule module) : Components.GenericAOEs(module)
     {
         switch (index, state)
         {
-            case (0, 0x00200010): // big platform gone
+            case (0, 0x00200010):
                 Arena.Bounds = _small;
                 _fallingAOE = null;
                 break;
-            case (0, 0x08000004): // big platform back, with the bridges gone (0x02000100 ~4.5s earlier only starts it; players walking in then fell)
+            case (0, 0x08000004):
                 Arena.Bounds = _big;
                 break;
-            case (1 or 2 or 3, 0x00020001): // bridges, all three appear together
+            case (1 or 2 or 3, 0x00020001):
                 if (Arena.Bounds == _small)
                     Arena.Bounds = _bridged;
                 break;

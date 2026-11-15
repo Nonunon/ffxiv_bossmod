@@ -71,8 +71,6 @@ class SynergyAOE1(BossModule module) : Components.BaitAwayCast(module, AID.Syner
 class SynergyAOE2(BossModule module) : Components.BaitAwayCast(module, AID.SynergyAOE2, new AOEShapeCircle(5), true);
 class DarkAshes(BossModule module) : Components.SpreadFromCastTargets(module, AID.DarkAshesAOE, 6);
 
-// the board is 4x4 cells of 10y; each ENVC 1-4 marks one 2x2 quadrant (NW, NE, SW, SE)
-// plus lights the quadrant's NW and SE cells, cross its NE and SW cells, full all four; exchange tethers swap two quadrants' markers
 class Polyominoid(BossModule module) : Components.GenericAOEs(module, AID.PolyominousDarkIV)
 {
     private enum Marker { None, Plus, Cross, Full }
@@ -128,7 +126,6 @@ class Polyominoid(BossModule module) : Components.GenericAOEs(module, AID.Polyom
 
     public override void OnUntethered(Actor source, in ActorTetherInfo tether)
     {
-        // the swapped markers arrive as map effects on the same frame
         if (tether.ID == (uint)TetherID.PolyExchange)
             _tethers.RemoveAll(t => t.from == source);
     }
@@ -160,7 +157,6 @@ class Polyominoid(BossModule module) : Components.GenericAOEs(module, AID.Polyom
     };
 }
 
-// glossomorph runs out into a stun, then a parasite casts reek havoc from the player's position and facing
 class Transmission(BossModule module) : Components.GenericAOEs(module)
 {
     private readonly DateTime[] _expire = new DateTime[PartyState.MaxPartySize];
@@ -227,13 +223,11 @@ class Transmission(BossModule module) : Components.GenericAOEs(module)
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        // the facing is locked by now and reek havoc's own cast takes over
         if ((AID)spell.Action.ID == AID.ReekHavoc)
             _stunned.Reset();
     }
 }
 
-// the boss's own 31249 cast is missing on some pulls (the -45 one in the 2026-11-13 kill), so the sequences start from the helper casts
 class StropheIxou(BossModule module) : Components.GenericRotatingAOE(module)
 {
     private Angle _increment;
@@ -248,7 +242,6 @@ class StropheIxou(BossModule module) : Components.GenericRotatingAOE(module)
             IconID.StropheRotateCW => 45.Degrees(),
             _ => _increment
         };
-        // the icon can land in the same frame just after the helper casts
         foreach (ref var s in Sequences.AsSpan())
             if (s.Increment == default)
                 s.Increment = _increment;
@@ -262,7 +255,6 @@ class StropheIxou(BossModule module) : Components.GenericRotatingAOE(module)
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        // every hit carries the boss's facing, so the back cone is that plus 180
         var rot = (AID)spell.Action.ID switch
         {
             AID.PathogenicCellsFirst or AID.PathogenicCellsRest => spell.Rotation,

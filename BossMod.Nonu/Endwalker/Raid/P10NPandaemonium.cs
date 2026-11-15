@@ -83,7 +83,6 @@ class Imprisonment(BossModule module) : Components.StandardAOEs(module, AID.Impr
 class Cannonspawn(BossModule module) : Components.StandardAOEs(module, AID.CannonspawnAOE, new AOEShapeDonut(3, 7));
 class PandaemoniacRay(BossModule module) : Components.StandardAOEs(module, AID.PandaemoniacRay, new AOEShapeRect(30, 25));
 class Touchdown(BossModule module) : Components.StandardAOEs(module, AID.TouchdownAOE, 20);
-// the cast ends before the hits: 8 raidwides ~1.6s apart, then the knockback ~4s after the last; the hint stays until the knockback lands
 class HarrowingHell(BossModule module) : Components.CastCounter(module, AID.HarrowingHellKnockback)
 {
     private bool _active;
@@ -111,7 +110,6 @@ class HarrowingHell(BossModule module) : Components.CastCounter(module, AID.Harr
 }
 class HarrowingHellKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HarrowingHellKnockback, 25, ignoreImmunes: true, kind: Kind.DirForward);
 class PandaemoniacMeltdown(BossModule module) : Components.SimpleLineStack(module, 3, 50, AID.PandaemoniacMeltdownTargetSelect, AID.PandaemoniacMeltdownAOE, 6.2f);
-// four hits ~1.5s apart on the same target; shown until the last one
 class SoulGrasp(BossModule module) : Components.IconSharedTankbuster(module, (uint)IconID.SoulGrasp, AID.SoulGraspAOE, 4, 5.8f)
 {
     private int _hits;
@@ -136,10 +134,8 @@ class SoulGrasp(BossModule module) : Components.IconSharedTankbuster(module, (ui
 }
 class Ultima(BossModule module) : Components.RaidwideCast(module, AID.Ultima);
 
-// cones from the centre, two at a time about 0.3s apart; only the next few are drawn
 class PartedPlumes(BossModule module) : Components.StandardAOEs(module, AID.PartedPlumesAOE, new AOEShapeCone(50, 10.Degrees()), 6, highlightImminent: true);
 
-// the centre of the main platform is a voidzone while the plumes go off (ENVC 4, P10S's 8y circle)
 class PartedPlumesVoidzone(BossModule module) : Components.GenericAOEs(module, default, "GTFO from voidzone!")
 {
     private static readonly AOEShapeCircle _shape = new(8);
@@ -158,8 +154,6 @@ class PartedPlumesVoidzone(BossModule module) : Components.GenericAOEs(module, d
     }
 }
 
-// two tank towers, 2.4s apart; anyone else in them blows up, an empty one is a raidwide
-// both get the earlier activation, so the AI treats them as one group and each tank keeps the tower it is in
 class WickedStep(BossModule module) : Components.GenericTowers(module)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -186,7 +180,6 @@ class WickedStep(BossModule module) : Components.GenericTowers(module)
     }
 }
 
-// silkspit binds its targets; a bound target near a web point gets pulled into the web, so spread 7y and keep away from the points
 class Silkspit(BossModule module) : Components.UniformStackSpread(module, 0, 7)
 {
     private readonly IReadOnlyList<Actor> _points = module.Enemies(OID.WebPoint);
@@ -225,8 +218,6 @@ class Silkspit(BossModule module) : Components.UniformStackSpread(module, 0, 7)
     }
 }
 
-// web lines join bound points (and anyone bound next to them); running through one breaks it and makes the runner heavy
-// a web holding a player should be broken by someone else to free them; webs between points only just give heavy, so avoid those
 class WebLines(BossModule module) : Components.GenericAOEs(module, default, "Don't cross the web!")
 {
     private readonly List<(Actor from, Actor to)> _webs = [];
@@ -262,7 +253,6 @@ class WebLines(BossModule module) : Components.GenericAOEs(module, default, "Don
             return;
         foreach (var w in _webs.Where(HoldsPlayer))
         {
-            // only the nearest free player goes for it
             var mid = Mid(w);
             var nearest = Raid.WithoutSlot().Where(p => !p.IsDead && !Held(p) && p.FindStatus(SID.Heavy) == null).MinBy(p => (p.Position - mid).LengthSq());
             if (nearest == actor)
@@ -289,7 +279,6 @@ class WebLines(BossModule module) : Components.GenericAOEs(module, default, "Don
     }
 }
 
-// P10S layout: a 26x30 main platform, two 8x30 side platforms 25y out, and 2y-wide bridges to them (ENVC 2 right, 3 left)
 class Platforms(BossModule module) : BossComponent(module)
 {
     private static readonly ArenaBoundsRect _rect = new(30, 22.5f);
@@ -300,7 +289,6 @@ class Platforms(BossModule module) : BossComponent(module)
 
     public static ArenaBoundsCustom Build(bool left, bool right)
     {
-        // offsets are from the module centre (100, 92.5)
         List<PolygonClipper.Operand> pieces = [Rect(0, 7.5f, 13, 15), Rect(25, -7.5f, 4, 15), Rect(-25, -7.5f, 4, 15)];
         if (right)
             pieces.Add(Rect(17, 0, 4.5f, 1));

@@ -88,7 +88,6 @@ class Glaukopis(BossModule module) : Components.BaitAwayCast(module, AID.Glaukop
 class Dialogos(BossModule module) : Components.StackWithCastTargets(module, AID.Dialogos, 6);
 class DialogosSpread(BossModule module) : Components.SpreadFromCastTargets(module, AID.DialogosSpread, 6);
 
-// wings say which side gets cleaved: the first hit is the cast (right or left of her), the wing icons add the next two 2.6s apart
 class TrinityOfSouls(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCone _shape = new(60, 90.Degrees());
@@ -130,7 +129,6 @@ class TrinityOfSouls(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// a mover tethered to an orb walks to it, then the orb goes off (circle 7 or donut 6-70); about 8.9s + 0.33s per yalm after the tether
 class Superchain(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle _circle = new(7);
@@ -146,7 +144,6 @@ class Superchain(BossModule module) : Components.GenericAOEs(module)
 
     public override void Update()
     {
-        // the orb can spawn after the tether, so resolve targets every frame
         for (var i = _pending.Count - 1; i >= 0; --i)
         {
             var (mover, shape) = _pending[i];
@@ -188,8 +185,6 @@ class Superchain(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// boss jumps onto each marked player in order: a 4y-wide charge from her last spot plus a 6y circle on the target
-// the number of jumps varies (8 and 6 seen), so it ends on palladion's end cast rather than on a count
 class PalladionJumps(BossModule module) : Components.GenericAOEs(module, default, "GTFO from the charge!")
 {
     private static readonly AOEShapeCircle _landing = new(6);
@@ -252,7 +247,6 @@ class PalladionJumps(BossModule module) : Components.GenericAOEs(module, default
     }
 }
 
-// unnatural enchainment: tethered tiles get sampled 8.2s later and fall away
 class UnnaturalEnchainment(BossModule module) : Components.GenericAOEs(module, AID.Sample)
 {
     private static readonly AOEShapeRect _shape = new(5, 10, 5);
@@ -276,11 +270,10 @@ class UnnaturalEnchainment(BossModule module) : Components.GenericAOEs(module, A
     }
 }
 
-// eight 20x10 tiles in a 2x4 grid (ENVC 0-7, west then east, north to south); enchainment and the end of palladion remove some for a while
 class Tiles(BossModule module) : BossComponent(module)
 {
     private static readonly ArenaBoundsSquare _square = new(20);
-    private int _removed; // bit i set if tile i is gone
+    private int _removed;
 
     public static WDir TileCenter(int i) => new((i & 1) == 0 ? -10 : 10, -15 + 10 * (i >> 1));
 
@@ -306,9 +299,6 @@ class Tiles(BossModule module) : BossComponent(module)
     }
 }
 
-// the floor turns into an octagon (ENVC 8) with the adds; 10.6s later, with the ultima blade raidwide, the floor outside it
-// (corners on the axes and diagonals, about 13.5y out) starts bleeding anyone on it (ENVC 10), until just before palladion cut
-// the zone is shown from 5s before the bleed, so the octagon doesn't sit on screen through the whole add spawn
 class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, default, "Stay inside the octagon!")
 {
     private const float OctagonRadius = 13.5f;
@@ -319,7 +309,6 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
 
     private static AOEShapeCustom BuildShape()
     {
-        // note: a fresh ArenaBounds has an empty ShapeSimplified until something draws it, so build the square directly
         var square = CurveApprox.Rect(new WDir(20, 0), new WDir(0, 20));
         var octagon = Enumerable.Range(0, 8).Select(i => OctagonRadius * (45f * i).Degrees().ToDirection());
         return new(new PolygonClipper().Difference(new(square), new(octagon)));
@@ -341,7 +330,7 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
     {
         switch (index, state)
         {
-            case (10, 0x00020001): // outside starts bleeding
+            case (10, 0x00020001):
                 _active = true;
                 _activation = WorldState.CurrentTime;
                 break;
@@ -353,7 +342,6 @@ class PalladionArenaEdge(BossModule module) : Components.GenericAOEs(module, def
         }
     }
 
-    // ultima blade has no cast bar: the boss action comes about 7.4s before the raidwide hit, which is when the outside starts bleeding
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         if ((AID)spell.Action.ID == AID.UltimaBlade)

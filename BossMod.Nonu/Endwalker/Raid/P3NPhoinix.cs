@@ -90,11 +90,10 @@ class SearingBreezeAOE(BossModule module) : Components.StandardAOEs(module, AID.
 class ScorchedExaltation(BossModule module) : Components.RaidwideCast(module, AID.ScorchedExaltation);
 class DarkenedBlaze(BossModule module) : Components.RaidwideCast(module, AID.DarkenedBlaze, "Raidwide (kill darkened fires with brightened fire)");
 
-// sunbirds leave a sparkfledged where they die; sparkfledged within joint pyre range of each other link up, which empowers the next dead rebirth enough to wipe
 class SunbirdSpread(BossModule module) : BossComponent(module)
 {
-    private const float LinkRange = 10.5f; // joint pyre radius 9 + sparkfledged hitbox 1.5; one pull linked at 7.9, another stayed apart at 11.1
-    private const float TargetSlack = 3; // a sunbird stands roughly this far from its target
+    private const float LinkRange = 10.5f;
+    private const float TargetSlack = 3;
 
     private readonly IReadOnlyList<Actor> _birds = module.Enemies(OID.Sunbird);
 
@@ -117,19 +116,16 @@ class SunbirdSpread(BossModule module) : BossComponent(module)
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
-        // two circles overlapping means the birds would link
         foreach (var bird in _birds)
             Arena.AddCircle(bird.Position, LinkRange / 2, TooClose(bird) ? ArenaColor.Danger : ArenaColor.Safe);
         Arena.Actors(_birds.Where(b => !b.IsDead), ArenaColor.Enemy);
     }
 }
 
-// four marked players are hit in order; each hit kills the darkened fires inside it, and any left alive when darkened blaze finishes deal heavy damage
-// every pending circle is also a spread, so all of them are drawn for everyone until they go off
 class BrightenedFire(BossModule module) : Components.CastCounter(module, AID.BrightenedFireAOE)
 {
     private const float Radius = 7;
-    private readonly int[] _order = new int[PartyState.MaxPartySize]; // 0 if not marked, 1-4 otherwise
+    private readonly int[] _order = new int[PartyState.MaxPartySize];
     private readonly IReadOnlyList<Actor> _fires = module.Enemies(OID.DarkenedFire);
 
     private IEnumerable<Actor> LiveFires => _fires.Where(f => !f.IsDead);
