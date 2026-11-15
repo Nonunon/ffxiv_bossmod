@@ -98,13 +98,42 @@ class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCast
     {
         var center = Module.Center;
         VBool wall(WVec p) => VV.GreaterThan((p - center).Length(), new VFloat(MaxLanding));
-        if (Module.FindComponent<DarkAndLight>()?.Sigil(slot) is not WPos c)
+        if (Module.FindComponent<DarkAndLight>()?.Sigil(slot) is not var (c, r))
             return wall;
-        return p => wall(p) | VV.GreaterThan((p - c).Length(), new VFloat(DarkAndLight.SigilRadius - 0.5f));
+        return p => wall(p) | VV.GreaterThan((p - c).Length(), new VFloat(r - 0.5f));
     }
 }
 class DismissalRulingLight(BossModule module) : DismissalRuling(module, AID.DismissalRulingLightAOE);
-class DismissalRulingDark(BossModule module) : DismissalRuling(module, AID.DismissalRulingDarkAOE);
+
+// dark: knocked out, then back inside 8y before Outer Dark; a goal near the middle keeps the AI close to the boss for both
+class DismissalRulingDark(BossModule module) : DismissalRuling(module, AID.DismissalRulingDarkAOE)
+{
+    private bool _outerDark;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (Casters.Count > 0 || _outerDark)
+        {
+            var center = Module.Center;
+            hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - (p - center).Length() / 8) * 5);
+        }
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        base.OnCastStarted(caster, spell);
+        if ((AID)spell.Action.ID == AID.OuterDark)
+            _outerDark = true;
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        base.OnCastFinished(caster, spell);
+        if ((AID)spell.Action.ID == AID.OuterDark)
+            _outerDark = false;
+    }
+}
 class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 10);
 class OuterDark(BossModule module) : Components.StandardAOEs(module, AID.OuterDark, new AOEShapeDonut(8, 50));
 class Lightburst(BossModule module) : Components.StandardAOEs(module, AID.LightburstAOE, 13);
@@ -207,32 +236,35 @@ class Styx(BossModule module) : Components.UniformStackSpread(module, 6, 0, 4)
     }
 }
 
-// discord turns into accord while standing in the matching sigil circle: light west around (89,100), dark east around (111,100), both about 7.5y;
-// leaving it turns it back, and katakrisis hits anyone in discord every few seconds
+// discord turns into accord while standing in the matching sigil circle: light west, 7.5y around (88.5,100), dark east, 8y around (111.5,100)
+// (fit to the edge facing the middle; the far edges run into the wall); leaving it turns it back, and katakrisis hits anyone in discord every few seconds
 class DarkAndLight(BossModule module) : BossComponent(module)
 {
-    public const float SigilRadius = 7.5f;
-    private const float SafeRadius = 6;
-    private static readonly WPos _lightSigil = new(89, 100);
-    private static readonly WPos _darkSigil = new(111, 100);
+    private const float SafeMargin = 1.5f;
+    private static readonly (WPos center, float radius) _lightSigil = (new(88.5f, 100), 7.5f);
+    private static readonly (WPos center, float radius) _darkSigil = (new(111.5f, 100), 8);
     private readonly int[] _side = new int[PartyState.MaxPartySize]; // -1 light, +1 dark, 0 none
     private bool _active;
 
-    private static WPos SigilAt(int side) => side < 0 ? _lightSigil : _darkSigil;
-    public WPos? Sigil(int slot) => _active && slot is >= 0 and < PartyState.MaxPartySize && _side[slot] != 0 ? SigilAt(_side[slot]) : null;
+    private static (WPos center, float radius) SigilAt(int side) => side < 0 ? _lightSigil : _darkSigil;
+    public (WPos center, float radius)? Sigil(int slot) => _active && slot is >= 0 and < PartyState.MaxPartySize && _side[slot] != 0 ? SigilAt(_side[slot]) : null;
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (!_active || _side[slot] == 0)
             return;
-        var inside = actor.Position.InCircle(SigilAt(_side[slot]), SafeRadius);
+        var (center, radius) = SigilAt(_side[slot]);
+        var inside = actor.Position.InCircle(center, radius - SafeMargin);
         hints.Add(_side[slot] < 0 ? "Stand in the west (light) circle!" : "Stand in the east (dark) circle!", !inside);
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         if (_active && _side[slot] != 0)
-            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(SigilAt(_side[slot]), SafeRadius));
+        {
+            var (center, radius) = SigilAt(_side[slot]);
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(center, radius - SafeMargin));
+        }
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
@@ -240,11 +272,14 @@ class DarkAndLight(BossModule module) : BossComponent(module)
         if (!_active)
             return;
         if (_side[pcSlot] != 0)
-            Arena.AddCircle(SigilAt(_side[pcSlot]), SigilRadius, ArenaColor.Safe, 2);
+        {
+            var (center, radius) = SigilAt(_side[pcSlot]);
+            Arena.AddCircle(center, radius, ArenaColor.Safe, 2);
+        }
         else
         {
-            Arena.AddCircle(_lightSigil, SigilRadius, ArenaColor.Object);
-            Arena.AddCircle(_darkSigil, SigilRadius, ArenaColor.Object);
+            Arena.AddCircle(_lightSigil.center, _lightSigil.radius, ArenaColor.Object);
+            Arena.AddCircle(_darkSigil.center, _darkSigil.radius, ArenaColor.Object);
         }
     }
 
