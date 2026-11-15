@@ -97,7 +97,7 @@ class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCast
     public override PointTest DestinationUnsafe(int slot, Actor actor)
     {
         var center = Module.Center;
-        PointTest wall = p => VV.GreaterThan((p - center).Length(), new VFloat(MaxLanding));
+        VBool wall(WVec p) => VV.GreaterThan((p - center).Length(), new VFloat(MaxLanding));
         if (Module.FindComponent<DarkAndLight>()?.Sigil(slot) is not WPos c)
             return wall;
         return p => wall(p) | VV.GreaterThan((p - c).Length(), new VFloat(DarkAndLight.SigilRadius - 0.5f));
