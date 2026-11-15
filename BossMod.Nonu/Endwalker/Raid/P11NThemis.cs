@@ -315,5 +315,5 @@ class P11NThemisStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 940, NameID = 12388, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 940, NameID = 12388, Incomplete = true)]
 public class P11NThemis(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(20));

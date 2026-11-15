@@ -316,5 +316,5 @@ class P5NProtoCarbuncleStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 872, NameID = 11440, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 872, NameID = 11440, Incomplete = true)]
 public class P5NProtoCarbuncle(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(15));

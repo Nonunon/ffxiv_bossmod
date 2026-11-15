@@ -274,5 +274,5 @@ class P8NHephaistosStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 883, NameID = 11399, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 883, NameID = 11399, Incomplete = true)]
 public class P8NHephaistos(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(20));

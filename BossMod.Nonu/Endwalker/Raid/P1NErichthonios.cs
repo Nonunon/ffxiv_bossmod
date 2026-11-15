@@ -269,7 +269,7 @@ class P1NErichthoniosStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 808, NameID = 10345, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 808, NameID = 10345, Incomplete = true)]
 public class P1NErichthonios(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(20))
 {
     public const float InnerCircleRadius = 11.5f;

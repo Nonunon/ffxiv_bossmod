@@ -335,5 +335,5 @@ class P10NPandaemoniumStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 938, NameID = 12354, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 938, NameID = 12354, Incomplete = true)]
 public class P10NPandaemonium(ModuleInit init) : BossModule(init, new(100, 92.5f), Platforms.Build(false, false));

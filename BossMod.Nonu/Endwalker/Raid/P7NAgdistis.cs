@@ -294,5 +294,5 @@ class P7NAgdistisStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 876, NameID = 11374, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 876, NameID = 11374, Incomplete = true)]
 public class P7NAgdistis(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(20));

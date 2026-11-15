@@ -309,5 +309,5 @@ class P4NHesperosStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 800, NameID = 10742, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 800, NameID = 10742, Incomplete = true)]
 public class P4NHesperos(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(20));

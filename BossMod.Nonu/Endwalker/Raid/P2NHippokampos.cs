@@ -154,7 +154,7 @@ class P2NHippokamposStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 810, NameID = 10348, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 810, NameID = 10348, Incomplete = true)]
 public class P2NHippokampos(ModuleInit init) : BossModule(init, new(100, 100), DefaultBounds)
 {
     public static readonly ArenaBoundsRect DefaultBounds = new(17.5f, 22.5f);

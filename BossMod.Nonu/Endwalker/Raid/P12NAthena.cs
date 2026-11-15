@@ -383,5 +383,5 @@ class P12NAthenaStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 942, NameID = 12377, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 942, NameID = 12377, Incomplete = true)]
 public class P12NAthena(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(20));

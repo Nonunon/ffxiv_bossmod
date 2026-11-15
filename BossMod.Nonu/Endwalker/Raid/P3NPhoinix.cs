@@ -202,5 +202,5 @@ class P3NPhoinixStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 806, NameID = 10720, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 806, NameID = 10720, Incomplete = true)]
 public class P3NPhoinix(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(20));

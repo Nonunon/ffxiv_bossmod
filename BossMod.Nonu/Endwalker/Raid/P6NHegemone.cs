@@ -302,5 +302,5 @@ class P6NHegemoneStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 880, NameID = 11381, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 880, NameID = 11381, Incomplete = true)]
 public class P6NHegemone(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsSquare(20));

@@ -296,5 +296,5 @@ class P9NKokytosStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 936, NameID = 12369, PlanLevel = 90, Incomplete = true)]
+[ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 936, NameID = 12369, Incomplete = true)]
 public class P9NKokytos(ModuleInit init) : BossModule(init, new(100, 100), new ArenaBoundsCircle(20));
