@@ -186,45 +186,36 @@ class RubyReflectionQuadrant(BossModule module) : Components.GenericAOEs(module,
     }
 }
 
-// a stone turning poisonous gets a poison puddle about 5s later, which grows from 5y to 12y and stays until the stone goes dormant again
+// a stone turning poisonous gets a poison puddle about 5s later, which grows from 5y to 12y and stays until the stone goes dormant again.
+// only the puddle as it is now is drawn; the AI also avoids a hidden circle 2y ahead of it (capped at full size), so it stays ahead without
+// being sent out to the full 12y early
 class PoisonStones(BossModule module) : Components.GenericAOEs(module)
 {
     private const float StartRadius = 5;
     private const float MaxRadius = 12;
     private const float GrowthPerSecond = 0.75f;
-    private static readonly AOEShapeCircle ShapeMax = new(MaxRadius);
+    private const float Lead = 2;
     private readonly List<(Actor stone, DateTime activation)> _stones = [];
 
     private float RadiusAt(DateTime activation, DateTime time) => Math.Clamp(StartRadius + GrowthPerSecond * (float)(time - activation).TotalSeconds, StartRadius, MaxRadius);
-    private DateTime FullSizeAt(DateTime activation) => activation.AddSeconds((MaxRadius - StartRadius) / GrowthPerSecond);
+    private float LeadRadius(DateTime activation) => Math.Min(RadiusAt(activation, WorldState.CurrentTime) + Lead, MaxRadius);
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
         => _stones.Select(s => new AOEInstance(new AOEShapeCircle(RadiusAt(s.activation, WorldState.CurrentTime)), s.stone.Position, default, s.activation));
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (_stones.Any(s => ShapeMax.Check(actor.Position, s.stone.Position, default)))
+        if (_stones.Any(s => actor.Position.InCircle(s.stone.Position, LeadRadius(s.activation))))
             hints.Add("Poison spreads here, move away!");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
+        // add extra margin to prevent safe-dash function from moving player into growing puddle
         foreach (var s in _stones)
-        {
-            hints.AddForbiddenZone(ShapeMax, s.stone.Position, default, FullSizeAt(s.activation));
-            // add extra margin to prevent safe-dash function from moving player into growing puddle
-            var radius = RadiusAt(s.activation, WorldState.CurrentTime);
-            if (radius < MaxRadius)
-                hints.AddForbiddenZone(new AOEShapeCircle(Math.Min(radius + 2, MaxRadius)), s.stone.Position, default, DateTime.MaxValue);
-        }
-    }
-
-    public override void DrawArenaForeground(int pcSlot, Actor pc)
-    {
-        // the full-size outline only while it grows; once full, the puddle itself shows it
-        foreach (var s in _stones.Where(s => RadiusAt(s.activation, WorldState.CurrentTime) < MaxRadius))
-            Arena.AddCircle(s.stone.Position, MaxRadius, ArenaColor.Danger);
+            if (RadiusAt(s.activation, WorldState.CurrentTime) < MaxRadius)
+                hints.AddForbiddenZone(new AOEShapeCircle(LeadRadius(s.activation)), s.stone.Position, default, DateTime.MaxValue);
     }
 
     public override void OnActorEAnim(Actor actor, uint state)
