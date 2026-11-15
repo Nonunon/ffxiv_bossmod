@@ -199,7 +199,7 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
     {
         var sources = Sources(slot, actor).Where(s => !IsImmune(slot, s.Activation)).ToList();
         var nearWall = ShapeDistance.InvertedRect(Module.Center, default(Angle), 20 - WallMargin, 20 - WallMargin, 20 - WallMargin);
-        var isUnsafe = DestinationUnsafe(slot, actor) | (PointTest)(p => VV.LessThan(nearWall(p), VFloat.Zero));
+        var isUnsafe = DestinationUnsafe(slot, actor) | (p => VV.LessThan(nearWall(p), VFloat.Zero));
         for (var k = 1; k <= sources.Count; ++k)
         {
             var steps = sources.Take(k).ToList();
