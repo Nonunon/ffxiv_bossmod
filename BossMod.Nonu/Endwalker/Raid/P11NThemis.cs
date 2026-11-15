@@ -222,13 +222,13 @@ class Styx(BossModule module) : Components.UniformStackSpread(module, 6, 0, 4)
     }
 }
 
-// discord turns into accord while standing in the matching sigil circle: light west, 7.5y around (88.5,100), dark east, 8y around (111.5,100)
-// (fit to the edge facing the middle; the far edges run into the wall); leaving it turns it back, and katakrisis hits anyone in discord every few seconds
+// discord turns into accord while standing in the matching sigil circle: light west, dark east, both 8y around (88,100) / (112,100)
+// (fit to every position sample with its accord/discord status over five pulls); leaving it turns it back, and katakrisis hits anyone in discord every few seconds
 class DarkAndLight(BossModule module) : BossComponent(module)
 {
     private const float SafeMargin = 1.5f;
-    private static readonly (WPos center, float radius) _lightSigil = (new(88.5f, 100), 7.5f);
-    private static readonly (WPos center, float radius) _darkSigil = (new(111.5f, 100), 8);
+    private static readonly (WPos center, float radius) _lightSigil = (new(88, 100), 8);
+    private static readonly (WPos center, float radius) _darkSigil = (new(112, 100), 8);
     private readonly int[] _side = new int[PartyState.MaxPartySize]; // -1 light, +1 dark, 0 none
     private bool _active;
 
