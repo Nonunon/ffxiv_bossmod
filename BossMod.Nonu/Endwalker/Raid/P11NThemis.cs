@@ -113,51 +113,17 @@ class Dineis(BossModule module) : Components.StandardAOEs(module, AID.DineisAOE,
 class BlindingLight(BossModule module) : Components.SpreadFromCastTargets(module, AID.BlindingLightAOE, 6);
 
 // lines from the boss or a clone: first a 16y-wide line, then either a 26y-wide one (light) or the two lanes beside it (dark)
-// the wide one is shown together with the first line; the lanes only after it, since line + lanes would cover everything.
-// until then the lanes are outlined (no AI zone) and the gap between them, where you step in, is outlined green and is an AI goal:
-// alone that's the first line, so the AI waits at its edge; with two clones it's the gap's parts outside the other clone's line
+// the wide one is shown together with the first line; the lanes only after it, since line + lanes would cover everything
 class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeRect _narrow = new(46, 8);
     private static readonly AOEShapeRect _wide = new(46, 13);
     private readonly List<AOEInstance> _aoes = [];
-    private readonly List<AOEInstance> _lanes = [];
-
-    private DateTime Deadline => _aoes.FirstOrDefault().Activation.AddSeconds(1);
-    private List<AOEInstance> PendingLanes() => [.. _lanes.Where(l => l.Activation >= Deadline)];
-
-    private IEnumerable<(WPos origin, WDir dir)> Gaps(bool pendingOnly)
-    {
-        var lanes = pendingOnly ? PendingLanes() : _lanes;
-        for (var i = 0; i < lanes.Count; ++i)
-            for (var j = i + 1; j < lanes.Count; ++j)
-                if (Math.Abs((lanes[i].Activation - lanes[j].Activation).TotalSeconds) < 0.5 && Math.Abs((lanes[i].Rotation - lanes[j].Rotation).Normalized().Rad) < 0.05f)
-                    yield return (lanes[i].Origin + 0.5f * (lanes[j].Origin - lanes[i].Origin), lanes[i].Rotation.ToDirection());
-    }
 
     public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
-        var deadline = Deadline;
+        var deadline = _aoes.FirstOrDefault().Activation.AddSeconds(1);
         return _aoes.Where(a => a.Activation < deadline || a.Shape == _wide);
-    }
-
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        base.AddAIHints(slot, actor, assignment, hints);
-        // peaks in the middle of the gap and fades 4y past its edges: the AI hugs the first line while it's live, then steps in
-        foreach (var (origin, dir) in Gaps(false))
-        {
-            var normal = dir.OrthoL();
-            hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - VV.Abs(normal.Dot(p - origin)) / (_narrow.HalfWidth + 4)) * 5);
-        }
-    }
-
-    public override void DrawArenaForeground(int pcSlot, Actor pc)
-    {
-        foreach (var l in PendingLanes())
-            Arena.AddRect(l.Origin, l.Rotation.ToDirection(), _narrow.LengthFront, 0, _narrow.HalfWidth, ArenaColor.Danger);
-        foreach (var (origin, dir) in Gaps(true))
-            Arena.AddRect(origin, dir, _narrow.LengthFront, 0, _narrow.HalfWidth, ArenaColor.Safe, 2);
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -172,15 +138,8 @@ class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
         {
             _aoes.Add(new(shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell)));
             _aoes.SortBy(a => a.Activation);
-            if (IsLane(spell.Action.ID))
-            {
-                _lanes.Add(_aoes.Last(a => a.Origin == spell.LocXZ && a.Rotation == spell.Rotation));
-                _lanes.SortBy(a => a.Activation);
-            }
         }
     }
-
-    private static bool IsLane(uint aid) => (AID)aid is AID.RipplesOfGloomR or AID.RipplesOfGloomL or AID.RipplesOfGloomCloneR or AID.RipplesOfGloomCloneL;
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
@@ -188,8 +147,6 @@ class DivisiveRuling(BossModule module) : Components.GenericAOEs(module)
         {
             ++NumCasts;
             _aoes.RemoveAt(0);
-            if (IsLane(spell.Action.ID) && _lanes.Count > 0)
-                _lanes.RemoveAt(0);
         }
     }
 }
