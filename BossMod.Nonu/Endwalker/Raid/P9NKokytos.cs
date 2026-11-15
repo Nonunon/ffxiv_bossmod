@@ -106,7 +106,8 @@ class BeastlyRoarKnockback(BossModule module) : Components.KnockbackFromCastTarg
 class GluttonousRampage(BossModule module) : Components.CastHint(module, AID.GluttonousRampage, "Tankbusters on tethered tanks");
 
 // the boss bites whoever holds a rampage tether, twice. the tether starts too close (57) and turns into the stretched one (1) somewhere
-// around 13-16y from the boss: drawn red until stretched, green after; the AI holding a short tether keeps 15y from the boss
+// between ~12.3y and ~15.1y from the boss: drawn red until stretched, green after. the AI holding either kind keeps 15y from the boss for as
+// long as it has the tether; dropping the zone once stretched let movement presets pull it back in, flipping the tether every ~0.5s
 class GluttonousRampageTethers(BossModule module) : BossComponent(module)
 {
     private const float StretchRadius = 15;
@@ -126,7 +127,7 @@ class GluttonousRampageTethers(BossModule module) : BossComponent(module)
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (_tethers.TryGetValue(actor.InstanceID, out var t) && !t.stretched)
+        if (_tethers.ContainsKey(actor.InstanceID))
             hints.AddForbiddenZone(ShapeDistance.Circle(Module.PrimaryActor.Position, StretchRadius));
     }
 
