@@ -24,7 +24,7 @@ public enum AID : uint
     Ability30422 = 30422, // Boss->location, no cast, single-target
     SearingRay = 30423, // Boss->self, 7.0s cast, range 45 180-degree cone
     SearingRayCage = 30424, // Boss->self, 6.5+0.5s cast, hits the boss's side of the diagonal wall
-    SearingRayCageReflection = 30426, // Helper->self, 7.0s cast, range 1 width 4 rect
+    SearingRayCageReflection = 30426, // Helper->self, 7.0s cast, range 1 width 4 rect in the sheet; really the half of the arena in its direction
     TopazStones = 30430, // Boss->self, 4.0s cast, single-target
     TopazStonesVisual = 30431, // Helper->self, 4.0s cast, single-target
     TopazRay = 30432, // Helper->self, 6.5s cast, range 4 circle
@@ -109,10 +109,38 @@ class SearingRayCage(BossModule module) : Components.GenericAOEs(module, AID.Sea
             _aoe = new(Shape, Module.Center, Angle.FromDirection(caster.Position - Module.Center), Module.CastFinishAt(spell, 0.5f));
     }
 
+    // a reflection pair from the previous ray bounces just after this cast starts; only a bounce after the ray itself ends it
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID == AID.SearingRayCageBounce)
+        if ((AID)spell.Action.ID == AID.SearingRayCageBounce && _aoe is var aoe && aoe != null && WorldState.CurrentTime >= aoe.Value.Activation.AddSeconds(-0.2f))
             _aoe = null;
+    }
+}
+
+// the ray reflecting off the wall: hits the half of the arena in its cast direction from the centre, then once more (the bounce) ~0.35s later
+class RubyReflection(BossModule module) : Components.GenericAOEs(module, AID.SearingRayCageReflection)
+{
+    private static readonly AOEShapeRect Shape = new(45, 45);
+    private readonly List<AOEInstance> _aoes = [];
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.SearingRayCageReflection)
+        {
+            _aoes.Add(new(Shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell)));
+            _aoes.SortBy(a => a.Activation);
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID == AID.SearingRayCageBounce && _aoes.Count > 0 && WorldState.CurrentTime >= _aoes[0].Activation.AddSeconds(-0.2f))
+        {
+            ++NumCasts;
+            _aoes.RemoveAt(0);
+        }
     }
 }
 
@@ -300,6 +328,7 @@ class P5NProtoCarbuncleStates : StateMachineBuilder
             .ActivateOnEnter<RubyGlow>()
             .ActivateOnEnter<SearingRay>()
             .ActivateOnEnter<SearingRayCage>()
+            .ActivateOnEnter<RubyReflection>()
             .ActivateOnEnter<TopazRay>()
             .ActivateOnEnter<TopazRayBent>()
             .ActivateOnEnter<RubyReflectionQuadrant>()
