@@ -177,9 +177,12 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
     }
 
     // the base hints test each knockback from where you stand now; here each step is tested from where the previous ones put you.
-    // the lane is a goal on top of that: the charge line first, then the side of the first landing spot that's off the line (the charge
-    // pushes you 10y towards it and its 20y knockback throws you back across the middle instead of into a wall)
+    // landings really throw 20-22y, so the AI keeps every step 3y off the wall.
+    // the lane is a goal on top of that: the charge line first, then 3.5y off it on the side of the first landing spot that's off the
+    // line (the charge pushes you 10y towards it and its knockback throws you back across the middle instead of into a wall)
     private const float LaneHalfWidth = 1.5f;
+    private const float LaneOffset = 3.5f;
+    private const float WallMargin = 3;
 
     private (WPos mid, WDir normal, float side)? Lane()
     {
@@ -195,7 +198,8 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         var sources = Sources(slot, actor).Where(s => !IsImmune(slot, s.Activation)).ToList();
-        var isUnsafe = DestinationUnsafe(slot, actor) | DestinationOutOfBounds(slot, actor);
+        var nearWall = ShapeDistance.InvertedRect(Module.Center, default(Angle), 20 - WallMargin, 20 - WallMargin, 20 - WallMargin);
+        var isUnsafe = DestinationUnsafe(slot, actor) | (PointTest)(p => VV.LessThan(nearWall(p), VFloat.Zero));
         for (var k = 1; k <= sources.Count; ++k)
         {
             var steps = sources.Take(k).ToList();
@@ -212,7 +216,7 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
 
         if (Lane() is var (mid, normal, side))
         {
-            var target = normal.Dot(mid.ToWDir()) + side * LaneHalfWidth;
+            var target = normal.Dot(mid.ToWDir()) + side * LaneOffset;
             hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - VV.Abs(normal.Dot(p) - new VFloat(target)) / LaneHalfWidth) * 10);
         }
     }
@@ -221,7 +225,7 @@ class BlazingFootfalls(BossModule module) : Components.Knockback(module)
     {
         base.DrawArenaBackground(pcSlot, pc);
         if (Lane() is var (mid, normal, side) && _charge is var (_, dir, _))
-            Arena.ZoneRect(mid + side * LaneHalfWidth * normal, dir, 21, 21, LaneHalfWidth, ArenaColor.SafeFromAOE);
+            Arena.ZoneRect(mid + side * LaneOffset * normal, dir, 21, 21, LaneHalfWidth, ArenaColor.SafeFromAOE);
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
