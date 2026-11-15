@@ -40,6 +40,7 @@ public enum AID : uint
     SparkOfLife = 30731, // Boss->self, 5.0s cast, range 60 circle
     ShadowOfAttis = 30780, // Boss->self, no cast, single-target
     Burst = 30781, // Helper->self, no cast, range 5 circle, tower
+    BigBurst = 30782, // Helper->self, no cast, raidwide, a tower nobody soaked
     AutoAttack = 30947, // Boss->self, no cast, single-target
     AutoAttack1 = 30948, // Helper->player, no cast, single-target
     HemitheossGlareIIIAOELong = 31226, // Helper->self, 10.0s cast, range 5-30 donut
@@ -56,10 +57,58 @@ class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.Im
 class HemitheossGlareIII(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOE, new AOEShapeDonut(4, 30));
 class HemitheossGlareIIILong(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOELong, new AOEShapeDonut(4, 30));
 class BoughOfAttisFront(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisFrontAOE, 19);
-class BoughOfAttisSide(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisSideAOE, new AOEShapeRect(50, 12.5f));
+class BoughOfAttisSide(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisSideAOE, new AOEShapeRect(50, 12.5f))
+{
+    private static readonly AOEShapeRect _margin = new(50, 12.8f);
+
+    // the knockback is lethal, so the AI also keeps 0.3y off the edge (hidden)
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        foreach (var c in Casters)
+            hints.AddForbiddenZone(_margin, c.CastInfo!.LocXZ, c.CastInfo.Rotation, Module.CastFinishAt(c.CastInfo));
+    }
+}
 class BoughOfAttisSideKnockback(BossModule module) : Components.KnockbackFromCastTarget(module, AID.BoughOfAttisSideAOE, 60, shape: new AOEShapeRect(50, 12.5f), kind: Kind.DirForward);
 class BoughOfAttisBack(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisBackAOE, 25);
 class StaticMoon(BossModule module) : Components.StandardAOEs(module, AID.StaticMoon, 10);
+
+// the Ios and birds wait stacked on a parking spot and teleport into place, already facing their target, ~5.5s before they cast;
+// their moon / line is drawn from then until the real cast starts
+class ForbiddenFruitPreview(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeCircle _moon = new(10);
+    private static readonly AOEShapeRect _line = new(60, 4);
+    private const float LeadToHit = 10.5f; // teleport -> cast start ~5.7s, cast 4.7s
+    private readonly Dictionary<ulong, (WPos pos, DateTime moved, bool pending)> _state = [];
+    private readonly Dictionary<uint, WPos> _parking = [];
+
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        foreach (var a in Module.Enemies(OID.ImmatureIo).Concat(Module.Enemies(OID.ImmatureStymphalide)))
+            if (_state.TryGetValue(a.InstanceID, out var st) && st.pending && a.CastInfo == null)
+                yield return new((OID)a.OID == OID.ImmatureIo ? _moon : _line, a.Position, a.Rotation, st.moved.AddSeconds(LeadToHit));
+    }
+
+    public override void Update()
+    {
+        foreach (var a in Module.Enemies(OID.ImmatureIo).Concat(Module.Enemies(OID.ImmatureStymphalide)))
+        {
+            if (!_parking.ContainsKey(a.OID))
+                _parking[a.OID] = a.Position; // they all start stacked on it
+            if (!_state.TryGetValue(a.InstanceID, out var st))
+                _state[a.InstanceID] = (a.Position, default, false);
+            else if (!a.Position.AlmostEqual(st.pos, 1))
+                _state[a.InstanceID] = (a.Position, WorldState.CurrentTime, !a.Position.AlmostEqual(_parking[a.OID], 1));
+        }
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID is AID.StaticMoon or AID.StymphalianStrike && _state.TryGetValue(caster.InstanceID, out var st))
+            _state[caster.InstanceID] = st with { pending = false };
+    }
+}
 class StymphalianStrike(BossModule module) : Components.StandardAOEs(module, AID.StymphalianStrike, new AOEShapeRect(60, 4));
 class HemitheossHoly(BossModule module) : Components.SpreadFromCastTargets(module, AID.HemitheossHolyAOE, 6);
 class HemitheossAeroII(BossModule module) : Components.BaitAwayCast(module, AID.HemitheossAeroIIAOE, new AOEShapeCircle(8), true);
@@ -105,13 +154,20 @@ class Towers(BossModule module) : Components.GenericTowers(module, AID.Burst)
             Towers.Add(new(actor.Position, 5, 1, 2, default, WorldState.FutureTime(9.7f)));
     }
 
+    // an empty tower goes off as Big Burst instead; the tower objects despawn ~1.4s later either way
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID == AID.Burst)
+        if ((AID)spell.Action.ID is AID.Burst or AID.BigBurst)
         {
             ++NumCasts;
             Towers.RemoveAll(t => t.Position.AlmostEqual(caster.Position, 1));
         }
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        if ((OID)actor.OID == OID.Tower)
+            Towers.RemoveAll(t => t.Position.AlmostEqual(actor.Position, 1));
     }
 }
 
@@ -183,6 +239,7 @@ class P7NAgdistisStates : StateMachineBuilder
             .ActivateOnEnter<BoughOfAttisSideKnockback>()
             .ActivateOnEnter<BoughOfAttisBack>()
             .ActivateOnEnter<StaticMoon>()
+            .ActivateOnEnter<ForbiddenFruitPreview>()
             .ActivateOnEnter<StymphalianStrike>()
             .ActivateOnEnter<HemitheossHoly>()
             .ActivateOnEnter<HemitheossAeroII>()
