@@ -119,15 +119,16 @@ class SearingRayCage(BossModule module) : Components.GenericAOEs(module, AID.Sea
             _aoe = new(Shape, Module.Center, Angle.FromDirection(caster.Position - Module.Center), Module.CastFinishAt(spell, 0.5f));
     }
 
-    // a reflection pair from the previous ray bounces just after this cast starts; only a bounce after the ray itself ends it
-    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    // the ray's reflection bounces twice (~0.35s and ~0.67s after it), and a pair from the previous ray bounces just after this cast starts,
+    // so the zone ends by time, after the last bounce
+    public override void Update()
     {
-        if ((AID)spell.Action.ID == AID.SearingRayCageBounce && _aoe is var aoe && aoe != null && WorldState.CurrentTime >= aoe.Value.Activation.AddSeconds(-0.2f))
+        if (_aoe is var aoe && aoe != null && WorldState.CurrentTime > aoe.Value.Activation.AddSeconds(1.2f))
             _aoe = null;
     }
 }
 
-// the ray reflecting off the wall: hits the half of the arena in its cast direction from the centre, then once more (the bounce) ~0.35s later.
+// the ray reflecting off the wall: hits the half of the arena in its cast direction from the centre, then twice more (bounces ~0.35s and ~0.67s later).
 // a reflection on the same half as a live cage isn't drawn twice: the cage zone already covers it and lasts until the bounce
 class RubyReflection(BossModule module) : Components.GenericAOEs(module, AID.SearingRayCageReflection)
 {
@@ -149,13 +150,12 @@ class RubyReflection(BossModule module) : Components.GenericAOEs(module, AID.Sea
         }
     }
 
+    public override void Update() => _aoes.RemoveAll(a => WorldState.CurrentTime > a.Activation.AddSeconds(0.9f));
+
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID == AID.SearingRayCageBounce && _aoes.Count > 0 && WorldState.CurrentTime >= _aoes[0].Activation.AddSeconds(-0.2f))
-        {
+        if ((AID)spell.Action.ID == AID.SearingRayCageBounce)
             ++NumCasts;
-            _aoes.RemoveAt(0);
-        }
     }
 }
 
