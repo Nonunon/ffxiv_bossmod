@@ -105,36 +105,22 @@ class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCast
 }
 class DismissalRulingLight(BossModule module) : DismissalRuling(module, AID.DismissalRulingLightAOE);
 
-// dark: knocked out, then back inside 8y before Outer Dark; a goal near the middle keeps the AI close to the boss for both
+// dark: knocked out, then back inside 8y before Outer Dark; until the push lands, a goal near the middle keeps the AI by the boss
+// (afterwards Outer Dark's own zone brings it back in)
 class DismissalRulingDark(BossModule module) : DismissalRuling(module, AID.DismissalRulingDarkAOE)
 {
-    private bool _outerDark;
-
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
-        if (Casters.Count > 0 || _outerDark)
+        if (Casters.Count > 0)
         {
             var center = Module.Center;
             hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - (p - center).Length() / 8) * 5);
         }
     }
-
-    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
-    {
-        base.OnCastStarted(caster, spell);
-        if ((AID)spell.Action.ID == AID.OuterDark)
-            _outerDark = true;
-    }
-
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
-    {
-        base.OnCastFinished(caster, spell);
-        if ((AID)spell.Action.ID == AID.OuterDark)
-            _outerDark = false;
-    }
 }
-class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 10);
+// sheet says 13; hit at 11.6 (PLD), every safe player 12.6 or more out over four pulls
+class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 12.5f);
 class OuterDark(BossModule module) : Components.StandardAOEs(module, AID.OuterDark, new AOEShapeDonut(8, 50));
 class Lightburst(BossModule module) : Components.StandardAOEs(module, AID.LightburstAOE, 13);
 class DarkPerimeter(BossModule module) : Components.StandardAOEs(module, AID.DarkPerimeterAOE, new AOEShapeDonut(8, 50));
