@@ -89,7 +89,9 @@ class DikeAOE1(BossModule module) : Components.SingleTargetCast(module, AID.Dike
 class DikeAOE2(BossModule module) : Components.SingleTargetCast(module, AID.DikeAOE2);
 // Inner Light / Outer Dark are already casting during the knockback but land ~3.5s later, so only the wall (and, during
 // Dark and Light, leaving your own sigil) counts as an unsafe landing; otherwise every landing is unsafe and the AI stands still.
-// the wall kills on contact and pushes vary, so landings past 18.5 count as the wall (an AST died landing at 18.9)
+// the wall kills on contact and pushes vary, so landings past 18.5 count as the wall (an AST died landing at 18.9).
+// the push is ~11y; during Dark and Light only a few yalms between your sigil's centre and the middle both stay in the sigil
+// and land in it, so a goal holds the AI 5y from the sigil centre towards the middle until the push lands
 class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCastTarget(module, aid, 11)
 {
     private const float MaxLanding = 18.5f;
@@ -102,6 +104,25 @@ class DismissalRuling(BossModule module, AID aid) : Components.KnockbackFromCast
             return wall;
         return p => wall(p) | VV.GreaterThan((p - c).Length(), new VFloat(r - 0.5f));
     }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (Casters.Count == 0)
+            return;
+        if (Module.FindComponent<DarkAndLight>()?.Sigil(slot) is var (c, _))
+        {
+            var spot = c + 5 * (Module.Center - c).Normalized();
+            hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - (p - spot).Length() / 4) * 5);
+        }
+        else if (PullToCenter)
+        {
+            var center = Module.Center;
+            hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - (p - center).Length() / 8) * 5);
+        }
+    }
+
+    protected virtual bool PullToCenter => false;
 }
 class DismissalRulingLight(BossModule module) : DismissalRuling(module, AID.DismissalRulingLightAOE);
 
@@ -109,18 +130,10 @@ class DismissalRulingLight(BossModule module) : DismissalRuling(module, AID.Dism
 // (afterwards Outer Dark's own zone brings it back in)
 class DismissalRulingDark(BossModule module) : DismissalRuling(module, AID.DismissalRulingDarkAOE)
 {
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        base.AddAIHints(slot, actor, assignment, hints);
-        if (Casters.Count > 0)
-        {
-            var center = Module.Center;
-            hints.GoalZones.Add(p => VV.Max(VFloat.Zero, VFloat.One - (p - center).Length() / 8) * 5);
-        }
-    }
+    protected override bool PullToCenter => true;
 }
-// sheet says 13; hit at 11.6 (PLD), every safe player 12.6 or more out over four pulls
-class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 12.5f);
+// hits at 12.6/12.8 and safe at 13.2 (solo PLD), so the sheet's 13 is right
+class InnerLight(BossModule module) : Components.StandardAOEs(module, AID.InnerLight, 13);
 class OuterDark(BossModule module) : Components.StandardAOEs(module, AID.OuterDark, new AOEShapeDonut(8, 50));
 class Lightburst(BossModule module) : Components.StandardAOEs(module, AID.LightburstAOE, 13);
 class DarkPerimeter(BossModule module) : Components.StandardAOEs(module, AID.DarkPerimeterAOE, new AOEShapeDonut(8, 50));
