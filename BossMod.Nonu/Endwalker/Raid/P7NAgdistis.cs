@@ -68,13 +68,37 @@ class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.Im
     }
 }
 
-// late in the fight (three platforms): a ~20y knockback away from one platform's centre (19.4y measured before the PLD fell off);
-// the AI looks for a spot whose landing is still on a platform. the moons and birds cast with it land ~3s later, so only falling off
-// counts as a bad landing (with them counted, every landing was unsafe and the AI froze); their own zones move it on afterwards
-class HemitheossAeroIV(BossModule module) : Components.KnockbackFromCastTarget(module, AID.HemitheossAeroIVAOE, 20)
+// late in the fight (three platforms): a big knockback away from one platform's centre. both pulls ended in a fall, the push stopping where
+// the player dropped (19.4y and 24.3y), so the real distance is at least 24.3y; a spot only counts as safe if both a 24y and a 30y push land
+// on a platform (in practice: on the source platform, within ~8.6y of its centre, towards another platform). the moons and birds cast with it
+// land ~3s later, so only falling off counts as a bad landing; their own zones move the AI on afterwards
+class HemitheossAeroIV(BossModule module) : Components.Knockback(module, AID.HemitheossAeroIVAOE, maxCasts: 1)
 {
+    private static readonly float[] _distances = [24, 30];
+    private readonly List<Actor> _casters = [];
+
+    public override IEnumerable<Source> Sources(int slot, Actor actor)
+    {
+        foreach (var c in _casters)
+            foreach (var d in _distances)
+                yield return new(c.CastInfo!.LocXZ, d, Module.CastFinishAt(c.CastInfo));
+    }
+
     public override PointTest DestinationUnsafe(int slot, Actor actor) => PointTest.Never;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.HemitheossAeroIVAOE)
+            _casters.Add(caster);
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.HemitheossAeroIVAOE)
+            _casters.Remove(caster);
+    }
 }
+
 class HemitheossGlareIII(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOE, new AOEShapeDonut(4, 30));
 class HemitheossGlareIIILong(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOELong, new AOEShapeDonut(4, 30));
 class BoughOfAttisFront(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisFrontAOE, 19);
