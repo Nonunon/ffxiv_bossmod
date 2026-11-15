@@ -51,7 +51,8 @@ public enum IconID : uint
     HemitheossAeroII = 364, // player
 }
 
-class ImmortalsObol(BossModule module) : Components.RaidwideCast(module, AID.ImmortalsObolAOE, "Raidwide + arena change");
+// damage falls off with distance from the centre: 90k at 7.6 (unsynced lv100 PLD), 40-60k at 13.5-14, ~22k at 16, near 0 past 17
+class ImmortalsObol(BossModule module) : Components.ProximityAOEs(module, AID.ImmortalsObolAOE, 15);
 class HemitheossGlareIII(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOE, new AOEShapeDonut(4, 30));
 class HemitheossGlareIIILong(BossModule module) : Components.StandardAOEs(module, AID.HemitheossGlareIIIAOELong, new AOEShapeDonut(4, 30));
 class BoughOfAttisFront(BossModule module) : Components.StandardAOEs(module, AID.BoughOfAttisFrontAOE, 19);
@@ -158,7 +159,7 @@ class Platforms(BossModule module) : Components.GenericAOEs(module)
                 Arena.Bounds = _small;
                 _fallingAOE = null;
                 break;
-            case (0, 0x02000100): // big platform back
+            case (0, 0x08000004): // big platform back, with the bridges gone (0x02000100 ~4.5s earlier only starts it; players walking in then fell)
                 Arena.Bounds = _big;
                 break;
             case (1 or 2 or 3, 0x00020001): // bridges, all three appear together
