@@ -565,7 +565,7 @@ class Dragonflight : Components.CastHint
 
 class Cocoons(BossModule module) : Components.AddsMulti(module, [(uint)OID.Cocoon, (uint)OID.MassiveCocoon]);
 class DragonAdds(BossModule module) : Components.AddsMulti(module, [(uint)OID.Ginryu, (uint)OID.Hakkinryu], 1);
-class MeteorImpact(BossModule module) : Components.ProximityAOEs(module, AID.MeteorImpact, 10);
+// each cocoon casts Meteor Impact for show (0 damage in every log); the helper on the same spot casts the real hit
 class MeteorImpactMarker(BossModule module) : Components.ProximityAOEs(module, AID.MeteorImpactMarker, 10);
 // the marked player drops a cocoon meteor, the same 10y proximity hit as the other cocoons
 class CocoonMarker(BossModule module) : Components.UniformStackSpread(module, 0, 10, alwaysShowSpreads: true)
@@ -879,7 +879,6 @@ class Un2ShinryuStates : StateMachineBuilder
             .ActivateOnEnter<TailSpitKnockback>()
             .ActivateOnEnter<Cocoons>()
             .ActivateOnEnter<DragonAdds>()
-            .ActivateOnEnter<MeteorImpact>()
             .ActivateOnEnter<MeteorImpactMarker>()
             .ActivateOnEnter<CocoonMarker>()
             .ActivateOnEnter<Fireball>()

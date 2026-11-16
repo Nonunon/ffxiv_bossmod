@@ -82,8 +82,8 @@ public enum AID : uint
     DarkMatter = 9703, // Boss->self, 3.0s cast, range 90 circle, raidwide, floor breaks after
     TouchdownVisual = 9747, // Boss->self, no cast, single-target
     Touchdown = 9748, // Helper->self, 5.0s cast, range 50 circle, proximity
-    MeteorImpact = 9701, // Cocoon/MassiveCocoon->self, 4.0s cast, range 60 circle, proximity
-    MeteorImpactMarker = 9743, // Helper->self, 5.0s cast, range 60 circle, proximity
+    MeteorImpact = 9701, // Cocoon/MassiveCocoon->self, 4.0s cast, range 60 circle, visual only (0 damage)
+    MeteorImpactMarker = 9743, // Helper->self, 5.0s cast, range 60 circle, proximity, the real hit on every cocoon and marker spot
     ExplosiveHatch = 9702, // Cocoon->self, no cast, range 90 circle
     CocoonHatch = 9733, // Cocoon/MassiveCocoon->self, no cast, single-target
     Fireball = 9739, // Ginryu/Hakkinryu->location, 2.5s cast, range 4 circle
