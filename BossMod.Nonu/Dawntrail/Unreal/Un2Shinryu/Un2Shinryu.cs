@@ -903,7 +903,7 @@ class Un2ShinryuStates : StateMachineBuilder
 
     private void Phase3(uint id)
     {
-        Cast(id, AID.TeraSlash, 18.2f, 4, "Tankbuster")
+        CastStart(id, AID.TeraSlash, 18.2f)
             .ActivateOnEnter<TeraSlash>()
             .ActivateOnEnter<AtomicRay>()
             .ActivateOnEnter<AetherialRay>()
@@ -914,7 +914,8 @@ class Un2ShinryuStates : StateMachineBuilder
             .ActivateOnEnter<IceStormFreeze>()
             .ActivateOnEnter<HypernovaP3>()
             .ActivateOnEnter<LevinboltP3Hint>()
-            .ActivateOnEnter<LevinboltP3>()
+            .ActivateOnEnter<LevinboltP3>();
+        CastEnd(id + 1, 4, "Tankbuster")
             .SetHint(StateMachine.StateHint.Tankbuster);
         ComponentCondition<AtomicRay>(id + 0x10, 6.2f, comp => comp.Active, "", 2);
         ComponentCondition<AtomicRay>(id + 0x11, 7.2f, comp => !comp.Active, "Stacks", 2);
