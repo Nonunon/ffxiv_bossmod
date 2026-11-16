@@ -496,12 +496,32 @@ class TailMarker(BossModule module) : BossComponent(module)
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor) => player == Target ? PlayerPriority.Danger : PlayerPriority.Irrelevant;
 }
 
+// Thin Ice lasts 5s after Diamond Dust, and any step on it slides you 25y in a straight line (30 of 38 slides in the logs measured
+// 25.0y, the rest were cut short when it wore off), holes included, so the AI holds still from just before it lands until it ends.
 class ThinIce(BossModule module) : BossComponent(module)
 {
+    private DateTime _lands;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if ((AID)spell.Action.ID == AID.DiamondDust)
+            _lands = Module.CastFinishAt(spell, 0.6f);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (actor.FindStatus(SID.ThinIce) != null)
+            hints.AddSpecialMode(AIHints.SpecialMode.PyreticMove, WorldState.CurrentTime);
+        else if (_lands != default && WorldState.CurrentTime < _lands)
+            hints.AddSpecialMode(AIHints.SpecialMode.PyreticMove, _lands);
+    }
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (actor.FindStatus(SID.ThinIce) != null)
-            hints.Add("Thin ice: you slide when moving, mind the holes!", false);
+            hints.Add("Thin ice: any step slides you 25y, stand still!");
+        else if (_lands != default && WorldState.CurrentTime < _lands && WorldState.CurrentTime > _lands.AddSeconds(-2))
+            hints.Add("Stop moving before the ice lands", false);
     }
 }
 
