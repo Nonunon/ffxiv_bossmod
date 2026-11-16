@@ -399,52 +399,101 @@ class BurningChains : Components.Chains
     }
 }
 
+// Shinryu dives 8.1s after the tail marker; the dive picks the side (north or south of the middle row) and the marked player's
+// column at that moment picks the column, so the tail surfaces 4.4s later at (column, ±10) and slaps 20y to both sides of it
+// (the middle-row tile and one outer tile), 10.1s after the dive. Matched 45 of 45 tails across the Unreal and Extreme logs.
 class TailSlap(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeRect _shape = new(20, 10, 20);
-    private readonly List<(Actor Tail, DateTime Activation)> _tails = [];
+    private readonly List<AOEInstance> _aoes = [];
 
-    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _tails.Select(t => new AOEInstance(_shape, t.Tail.Position, t.Tail.Rotation, t.Activation));
+    public override IEnumerable<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes;
 
     public override void OnActorCreated(Actor actor)
     {
         if ((OID)actor.OID == OID.Tail)
-            _tails.Add((actor, WorldState.FutureTime(5.7f)));
+        {
+            _aoes.Clear();
+            _aoes.Add(new(_shape, actor.Position, actor.Rotation, WorldState.FutureTime(5.7f)));
+        }
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if ((AID)spell.Action.ID is AID.TailSlap or AID.TailSlapAlt)
+        switch ((AID)spell.Action.ID)
         {
-            _tails.RemoveAll(t => t.Tail == caster);
-            ++NumCasts;
+            case AID.TailDiveNorth:
+            case AID.TailDiveSouth:
+                if (Module.FindComponent<TailMarker>()?.Target is { } target)
+                    _aoes.Add(new(_shape, new(Un2Shinryu.TileCenter(target.Position).X, (AID)spell.Action.ID == AID.TailDiveNorth ? -10 : 10), default, WorldState.FutureTime(10.1f)));
+                break;
+            case AID.TailSlap:
+            case AID.TailSlapAlt:
+                _aoes.Clear();
+                ++NumCasts;
+                break;
         }
     }
 }
 
+// The slap always hits the tile the marked player stands on when Shinryu dives. Breaking the center tile once it is cracked
+// shatters every tile (the Alt slap; both full-floor collapses in the logs, an Unreal wipe and the first Extreme pull, while
+// breaking a cracked corner did nothing more), so the marked player keeps off a cracked center until the dive. The middle tiles
+// north and south of it are already gone after Earthen Fury, so off the center means the east or west column.
 class TailMarker(BossModule module) : BossComponent(module)
 {
-    private Actor? _target;
+    private static readonly WPos _center = new(0, 0);
+    public Actor? Target { get; private set; }
+    private DateTime _dive;
+
+    private bool CenterCracked => Module.FindComponent<ArenaChanges>()?.Cracked(_center) == true;
+    private bool Before(Actor actor) => actor == Target && _dive != default && WorldState.CurrentTime < _dive;
+    private static bool OnCenter(Actor actor) => Math.Abs(actor.Position.X) < 10 && Math.Abs(actor.Position.Z) < 10;
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
     {
         if (iconID == (uint)IconID.TailMarker)
-            _target = actor;
+        {
+            Target = actor;
+            _dive = WorldState.FutureTime(8.1f);
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if ((AID)spell.Action.ID is AID.TailDiveNorth or AID.TailDiveSouth)
+            _dive = default;
     }
 
     public override void OnActorCreated(Actor actor)
     {
         if ((OID)actor.OID == OID.Tail)
-            _target = null;
+            Target = null;
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Before(actor) && CenterCracked)
+            hints.AddForbiddenZone(ShapeDistance.Rect(_center, new WDir(0, 1), 10, 10, 10), _dive);
     }
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (actor == _target)
-            hints.Add("Tail marker: drop it away from the party, on a tile that can break");
+        if (!Before(actor))
+            return;
+        if (CenterCracked && OnCenter(actor))
+            hints.Add("Tail marker: get off the cracked center tile, breaking it drops the whole floor!");
+        else
+            hints.Add("Tail marker: the tail slaps the tile you stand on, keep away from the party", false);
     }
 
-    public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor) => player == _target ? PlayerPriority.Danger : PlayerPriority.Irrelevant;
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        if (Before(pc) && CenterCracked)
+            Arena.ZoneRect(_center, new WDir(0, 1), 10, 10, 10, ArenaColor.AOE);
+    }
+
+    public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor) => player == Target ? PlayerPriority.Danger : PlayerPriority.Irrelevant;
 }
 
 class ThinIce(BossModule module) : BossComponent(module)
@@ -856,10 +905,12 @@ class ArenaChanges : BossComponent
     private PolygonClipper.Operand _tiles = new(CurveApprox.Rect(new WDir(0, 1), 30, 30));
     private bool _p1Active = true;
     private readonly bool[] _broken = new bool[9];
+    private readonly bool[] _cracked = new bool[9];
 
     private static int TileIndex(WPos tile) => Math.Clamp((int)(tile.X / 20 + 1), 0, 2) + 3 * Math.Clamp((int)(tile.Z / 20 + 1), 0, 2);
 
     public bool Intact(WPos p) => Math.Abs(p.X) <= 30 && Math.Abs(p.Z) <= 30 && !_broken[TileIndex(Un2Shinryu.TileCenter(p))];
+    public bool Cracked(WPos p) => _cracked[TileIndex(Un2Shinryu.TileCenter(p))] && Intact(p);
 
     public VBool Broken(WVec p)
     {
@@ -876,9 +927,13 @@ class ArenaChanges : BossComponent
 
     public override void OnActorEAnim(Actor actor, uint state)
     {
-        if (!_p1Active || (OID)actor.OID != OID.Platform || (state >> 16) != 2 || (state & 0xFFFF) == 0x8000)
+        if (!_p1Active || (OID)actor.OID != OID.Platform)
             return;
         var center = Un2Shinryu.TileCenter(actor.Position);
+        if (state == 0x00040008)
+            _cracked[TileIndex(center)] = true;
+        if ((state >> 16) != 2 || (state & 0xFFFF) == 0x8000)
+            return;
         _broken[TileIndex(center)] = true;
         var offset = center - Arena.Center;
         var tile = new PolygonClipper.Operand(CurveApprox.Rect(new WDir(0, 1), 10, 10).Select(c => c + offset));

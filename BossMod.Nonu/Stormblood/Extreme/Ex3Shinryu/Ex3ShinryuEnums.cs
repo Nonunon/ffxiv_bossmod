@@ -72,8 +72,8 @@ public enum AID : uint
     DragonSpirit = 9746, // ReiryuHelper->self, no cast, raidwide when a reiryu is not healed in time
     BurningChains = 9730, // Helper->self, no cast, damage on players still chained
     Unknown1 = 9689, // Boss->self, no cast, single-target
-    Unknown2 = 9696, // Boss->self, no cast, single-target
-    Unknown3 = 9697, // Boss->self, no cast, single-target
+    TailDiveNorth = 9696, // Boss->self, no cast, single-target, 8.1s after the tail marker, the tail surfaces north of the middle row
+    TailDiveSouth = 9697, // Boss->self, no cast, single-target, 8.1s after the tail marker, the tail surfaces south of the middle row
     Unknown4 = 9719, // Boss->self, no cast, single-target
     Unknown5 = 9728, // Boss->self, no cast, single-target
     Unknown6 = 9729, // Boss->self, no cast, single-target
