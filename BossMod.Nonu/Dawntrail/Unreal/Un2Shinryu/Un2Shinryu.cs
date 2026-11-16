@@ -763,8 +763,8 @@ class DoomPuddle : BossComponent
 class BenightingBreath(BossModule module) : Components.StandardAOEs(module, AID.BenightingBreath, new AOEShapeCone(50, 45.Degrees()));
 class Enrage(BossModule module) : Components.CastHint(module, AID.TidalWaveEnrage, "Enrage", true);
 
-// Kill order: Tail > Worm's Heart > Shinryu. On the back during the Tidal Wave enrage, the wing whose enrage lands first
-// (Judgment Bolt, cast about 5s before Hellfire) goes down first.
+// Kill order: Tail > Worm's Heart > Shinryu. On the back during the Tidal Wave enrage, the wing whose enrage lands first goes
+// down first; the two casts start 5s apart, usually Judgment Bolt first, but Hellfire led in one Extreme pull.
 class TargetPriority : BossComponent
 {
     public TargetPriority(BossModule module) : base(module)
