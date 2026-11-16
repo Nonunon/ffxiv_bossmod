@@ -559,6 +559,8 @@ class Dragonflight : Components.CastHint
     private const float HealWindow = 13;
     public int NumWaves { get; private set; }
     private DateTime _lastSpawn;
+    // P3 can't count waves: a fast P1 pushes Dark Matter before the P1 wave (Extreme, +125 against +224)
+    public bool WaveJustSpawned => _lastSpawn != default && (WorldState.CurrentTime - _lastSpawn).TotalSeconds < 5;
 
     public Dragonflight(BossModule module) : base(module, AID.Dragonflight, "Heal Reiryu to full!", true)
     {
@@ -973,7 +975,7 @@ class Un2ShinryuStates : StateMachineBuilder
         CastMulti(id + 0x30, [AID.Wormwail, AID.BenightingBreathVisual], 6.4f, 4.5f, "Donut/cone");
         Cast(id + 0x40, AID.TeraSlash, 5.2f, 4, "Tankbuster")
             .SetHint(StateMachine.StateHint.Tankbuster);
-        ComponentCondition<Dragonflight>(id + 0x50, 4.3f, comp => comp.NumWaves > 1, "Reiryu (heal)", 3);
+        ComponentCondition<Dragonflight>(id + 0x50, 4.3f, comp => comp.WaveJustSpawned, "Reiryu (heal)", 3);
         Cast(id + 0x60, AID.TeraSlash, 42.0f, 4, "Tankbuster")
             .SetHint(StateMachine.StateHint.Tankbuster);
         ComponentCondition<AtomicRay>(id + 0x70, 6.2f, comp => comp.Active, "", 2);
