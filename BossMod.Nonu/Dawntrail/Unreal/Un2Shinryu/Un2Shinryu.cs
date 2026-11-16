@@ -391,9 +391,12 @@ class AkhRhai(BossModule module) : Components.GenericAOEs(module)
 class EarthBreath(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeCone(80, 30.Degrees()), (uint)IconID.EarthBreath, AID.EarthBreathAOE, 5.6f);
 class Dragonfist(BossModule module) : Components.StandardAOEs(module, AID.Dragonfist, 16);
 class GyreCharge(BossModule module) : Components.StandardAOEs(module, AID.GyreCharge, new AOEShapeRect(100, 30));
+// the chain breaks some 0.3s after the pair passes about 10y (186 chains in 13 Unreal and one Extreme pull; most break at 10-14y,
+// a few held past 15y), so the AI goes for 15y past where they started; unbroken, it burns both 3.6s after the tether and every
+// 1.6s after that
 class BurningChains : Components.Chains
 {
-    public BurningChains(BossModule module) : base(module, (uint)TetherID.BurningChains, AID.BurningChains)
+    public BurningChains(BossModule module) : base(module, (uint)TetherID.BurningChains, AID.BurningChains, 15, activationDelay: 3.6f)
     {
         KeepOnPhaseChange = true;
     }
