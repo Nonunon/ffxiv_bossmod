@@ -547,11 +547,33 @@ class ThinIce(BossModule module) : BossComponent(module)
     }
 }
 
+// Four Reiryu spawn at 1 HP (17.3s after Diamond Dust in P1, once more in P3); any not healed to full casts Dragonflight 8s later
+// (none in pulls where they were healed fast), so the timeline counts spawn waves rather than casts.
 class Dragonflight : Components.CastHint
 {
+    public int NumWaves { get; private set; }
+    private DateTime _lastSpawn;
+
     public Dragonflight(BossModule module) : base(module, AID.Dragonflight, "Heal Reiryu to full!", true)
     {
         KeepOnPhaseChange = true;
+    }
+
+    public override void OnActorCreated(Actor actor)
+    {
+        if ((OID)actor.OID != OID.Reiryu)
+            return;
+        if (WorldState.CurrentTime > _lastSpawn.AddSeconds(5))
+            ++NumWaves;
+        _lastSpawn = WorldState.CurrentTime;
+    }
+
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (Casters.Count > 0)
+            base.AddGlobalHints(hints);
+        else if (Module.Enemies(OID.Reiryu).Any(r => !r.IsDead && r.IsTargetable))
+            hints.Add("Heal Reiryu to full!");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -848,8 +870,8 @@ class Un2ShinryuStates : StateMachineBuilder
             .SetHint(StateMachine.StateHint.Raidwide);
         Cast(id + 0xC0, AID.DiamondDustVisual, 3.7f, 10, "Raidwide + thin ice")
             .SetHint(StateMachine.StateHint.Raidwide);
-        ComponentCondition<Dragonflight>(id + 0xD0, 25.1f, comp => comp.Casters.Count > 0, "Reiryu (heal)", 2);
-        ActorCast(id + 0xE0, LeftWing, AID.SummonIcicle, 31.2f, 4, false, "Icicles");
+        ComponentCondition<Dragonflight>(id + 0xD0, 17.3f, comp => comp.NumWaves > 0, "Reiryu (heal)");
+        ActorCast(id + 0xE0, LeftWing, AID.SummonIcicle, 39.1f, 4, false, "Icicles");
         Cast(id + 0xF0, AID.AkhMorn, 0, 4, "Shared tankbuster")
             .SetHint(StateMachine.StateHint.Tankbuster);
         Cast(id + 0x100, AID.AerialBlastVisual, 9.3f, 10, "Knockback")
@@ -924,8 +946,8 @@ class Un2ShinryuStates : StateMachineBuilder
         CastMulti(id + 0x30, [AID.Wormwail, AID.BenightingBreathVisual], 6.4f, 4.5f, "Donut/cone");
         Cast(id + 0x40, AID.TeraSlash, 5.2f, 4, "Tankbuster")
             .SetHint(StateMachine.StateHint.Tankbuster);
-        ComponentCondition<Dragonflight>(id + 0x50, 12.3f, comp => comp.Casters.Count > 0, "Reiryu (heal)", 3);
-        Cast(id + 0x60, AID.TeraSlash, 34.0f, 4, "Tankbuster")
+        ComponentCondition<Dragonflight>(id + 0x50, 4.3f, comp => comp.NumWaves > 1, "Reiryu (heal)", 3);
+        Cast(id + 0x60, AID.TeraSlash, 42.0f, 4, "Tankbuster")
             .SetHint(StateMachine.StateHint.Tankbuster);
         ComponentCondition<AtomicRay>(id + 0x70, 6.2f, comp => comp.Active, "", 2);
         ComponentCondition<AtomicRay>(id + 0x71, 7.2f, comp => !comp.Active, "Stacks", 2);
