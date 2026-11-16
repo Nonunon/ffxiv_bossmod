@@ -812,13 +812,15 @@ class TargetPriority : BossComponent
 
 // Dark Matter (P2) is an HP push: in Unreal it comes at the first check (+275.8, +294.0 or +351.0 into the pull) with Shinryu
 // below 45%. Every pull at 40.5-44.4% at the first check pushed there, every one at 46.3% or more waited for the next (13 pulls).
-// Extreme's one pushed pull went at 52.3%, so its threshold is not known and no target is shown there yet.
+// Extreme pushes at 45% too, at the next gap: Nonu's unsynced pull fell under 45% at +116.7 and Dark Matter followed Judgment
+// Bolt at +125.3 (44.4%). A slow solo pull got it at +391 anyway at 52.3%, so P1 also has a time limit. Unreal only shows the
+// target from 240s (its first check is at +275.8), Extreme from the start.
 class DarkMatterPush(BossModule module) : BossComponent(module)
 {
     public override void AddGlobalHints(GlobalHints hints)
     {
         var hp = Module.PrimaryActor.HPMP;
-        if (Un2Shinryu.DarkMatterPushPct is not { } threshold || hp.MaxHP == 0 || Module.StateMachine.TimeSincePhaseEnter < 240)
+        if (Un2Shinryu.DarkMatterPushPct is not { } threshold || hp.MaxHP == 0 || Module.StateMachine.TimeSincePhaseEnter < Un2Shinryu.DarkMatterHintFrom)
             return;
         var pct = 100f * hp.CurHP / hp.MaxHP;
         if (pct > threshold)
@@ -1094,6 +1096,7 @@ class ArenaChanges : BossComponent
 public class Un2Shinryu(ModuleInit init) : BossModule(init, new(0, 0), new ArenaBoundsSquare(30, MapResolution: 0.3f))
 {
     public static float? DarkMatterPushPct => 45;
+    public static float DarkMatterHintFrom => 240;
     public static readonly WPos P2Center = new(0, -80);
     public static readonly ArenaBoundsSquare P2Bounds = new(20);
     public static readonly WPos ClimbCenter = new(0, -50);
