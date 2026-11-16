@@ -802,6 +802,22 @@ class TargetPriority : BossComponent
     }
 }
 
+// Dark Matter (P2) is an HP push: in Unreal it comes at the first check (+275.8, +294.0 or +351.0 into the pull) with Shinryu
+// below 45%. Every pull at 40.5-44.4% at the first check pushed there, every one at 46.3% or more waited for the next (13 pulls).
+// Extreme's one pushed pull went at 52.3%, so its threshold is not known and no target is shown there yet.
+class DarkMatterPush(BossModule module) : BossComponent(module)
+{
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        var hp = Module.PrimaryActor.HPMP;
+        if (Un2Shinryu.DarkMatterPushPct is not { } threshold || hp.MaxHP == 0 || Module.StateMachine.TimeSincePhaseEnter < 240)
+            return;
+        var pct = 100f * hp.CurHP / hp.MaxHP;
+        if (pct > threshold)
+            hints.Add($"Push to {threshold:f0}% for Dark Matter (now {pct:f1}%)");
+    }
+}
+
 class Un2ShinryuStates : StateMachineBuilder
 {
     public Un2ShinryuStates(BossModule module) : base(module)
@@ -847,6 +863,7 @@ class Un2ShinryuStates : StateMachineBuilder
             .ActivateOnEnter<SuperCyclone>()
             .ActivateOnEnter<GyreCharge>()
             .ActivateOnEnter<TargetPriority>()
+            .ActivateOnEnter<DarkMatterPush>()
             .SetHint(StateMachine.StateHint.Raidwide);
         Cast(id + 0x10, AID.TidalWaveVisual, 13.2f, 10, "Knockback")
             .SetHint(StateMachine.StateHint.Knockback);
@@ -1068,6 +1085,7 @@ class ArenaChanges : BossComponent
 [ModuleInfo(Contributors = "Nonu", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1118, NameID = 5640, PlanLevel = 100, Incomplete = true)]
 public class Un2Shinryu(ModuleInit init) : BossModule(init, new(0, 0), new ArenaBoundsSquare(30, MapResolution: 0.3f))
 {
+    public static float? DarkMatterPushPct => 45;
     public static readonly WPos P2Center = new(0, -80);
     public static readonly ArenaBoundsSquare P2Bounds = new(20);
     public static readonly WPos ClimbCenter = new(0, -50);
