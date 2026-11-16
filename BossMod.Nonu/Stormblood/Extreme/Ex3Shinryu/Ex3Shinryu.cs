@@ -859,7 +859,15 @@ class Ex3ShinryuStates : StateMachineBuilder
             .SetHint(StateMachine.StateHint.Raidwide);
         ComponentCondition<GyreCharge>(id + 0x130, 7.0f, comp => comp.Casters.Count > 0, "Gyre charge", 3);
         ActorCast(id + 0x140, RightWing, AID.HypernovaVisual, 13.3f, 8, false, "Stack");
-        CastStart(id + 0x150, AID.DarkMatter, 1.1f, "Raidwide");
+        // Dark Matter is an HP push; without it P1 goes on (seen once, a slow solo pull: Dark Matter came at +391)
+        Cast(id + 0x150, AID.AkhMorn, 8.4f, 4, "Shared tankbuster")
+            .SetHint(StateMachine.StateHint.Tankbuster);
+        ActorCastStart(id + 0x160, RightWing, AID.LevinboltVisual, 7.6f);
+        CastStart(id + 0x170, AID.TidalWaveVisual, 4.0f);
+        ActorCastEnd(id + 0x171, RightWing, 3.7f, false, "Spread");
+        CastEnd(id + 0x172, 6.0f, "Knockback")
+            .SetHint(StateMachine.StateHint.Knockback);
+        SimpleState(id + 0xFF0000, 100, "???");
     }
 
     private void Phase2(uint id)
