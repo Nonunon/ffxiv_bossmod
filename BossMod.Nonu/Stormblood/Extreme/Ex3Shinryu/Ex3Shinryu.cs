@@ -547,10 +547,12 @@ class ThinIce(BossModule module) : BossComponent(module)
     }
 }
 
-// Four Reiryu spawn at 1 HP (17.3s after Diamond Dust in P1, once more in P3); any not healed to full casts Dragonflight 8s later
-// (none in pulls where they were healed fast), so the timeline counts spawn waves rather than casts.
+// Four Reiryu spawn at 1 HP (17.3s after Diamond Dust in P1, then waves in P3) and must be healed to full; one still unhealed 13.0s
+// after spawning explodes (Dragon Spirit, a raidwide that adds a Damage Down stack per Reiryu, seen in both failed Extreme pulls).
+// Ones being healed tether a player and cast Dragonflight 8s in, so the timeline counts spawn waves rather than casts.
 class Dragonflight : Components.CastHint
 {
+    private const float HealWindow = 13;
     public int NumWaves { get; private set; }
     private DateTime _lastSpawn;
 
@@ -570,10 +572,12 @@ class Dragonflight : Components.CastHint
 
     public override void AddGlobalHints(GlobalHints hints)
     {
-        if (Casters.Count > 0)
+        var left = (float)(_lastSpawn.AddSeconds(HealWindow) - WorldState.CurrentTime).TotalSeconds;
+        var unhealed = Module.Enemies(OID.Reiryu).Count(r => !r.IsDead && r.IsTargetable && r.HPMP.CurHP < r.HPMP.MaxHP);
+        if (unhealed > 0 && left > 0)
+            hints.Add($"Heal all Reiryu to full: {unhealed} left, {left:f0}s before they explode");
+        else if (Casters.Count > 0)
             base.AddGlobalHints(hints);
-        else if (Module.Enemies(OID.Reiryu).Any(r => !r.IsDead && r.IsTargetable))
-            hints.Add("Heal Reiryu to full!");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
