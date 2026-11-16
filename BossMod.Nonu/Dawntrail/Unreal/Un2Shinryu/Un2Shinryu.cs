@@ -547,9 +547,10 @@ class ThinIce(BossModule module) : BossComponent(module)
     }
 }
 
-// Four Reiryu spawn at 1 HP (17.3s after Diamond Dust in P1, then waves in P3) and must be healed to full; one still unhealed 13.0s
-// after spawning explodes (Dragon Spirit, a raidwide that adds a Damage Down stack per Reiryu, seen in both failed Extreme pulls).
-// Ones being healed tether a player and cast Dragonflight 8s in, so the timeline counts spawn waves rather than casts.
+// Four Reiryu spawn at 1 HP (17.3s after Diamond Dust in P1, then waves in P3); players can only heal them. 8s in each tethers its
+// own player and casts Dragonflight (30s), to be healed to full before it ends. One with nobody left to tether leaves 13.0s after
+// spawning with Dragon Spirit, a raidwide adding a Damage Down stack (solo pulls: one tether, the rest left). Healed ones vanish.
+// Dragonflight is not cast in every pull, so the timeline counts spawn waves.
 class Dragonflight : Components.CastHint
 {
     private const float HealWindow = 13;
@@ -570,14 +571,14 @@ class Dragonflight : Components.CastHint
         _lastSpawn = WorldState.CurrentTime;
     }
 
+    // a tethered Reiryu has until its Dragonflight ends, an untethered one until it leaves
+    private DateTime Deadline(Actor r) => r.CastInfo?.IsSpell(AID.Dragonflight) == true ? Module.CastFinishAt(r.CastInfo) : _lastSpawn.AddSeconds(HealWindow);
+
     public override void AddGlobalHints(GlobalHints hints)
     {
-        var left = (float)(_lastSpawn.AddSeconds(HealWindow) - WorldState.CurrentTime).TotalSeconds;
-        var unhealed = Module.Enemies(OID.Reiryu).Count(r => !r.IsDead && r.IsTargetable && r.HPMP.CurHP < r.HPMP.MaxHP);
-        if (unhealed > 0 && left > 0)
-            hints.Add($"Heal all Reiryu to full: {unhealed} left, {left:f0}s before they explode");
-        else if (Casters.Count > 0)
-            base.AddGlobalHints(hints);
+        var unhealed = Module.Enemies(OID.Reiryu).Where(r => !r.IsDead && r.IsTargetable && r.HPMP.CurHP < r.HPMP.MaxHP && Deadline(r) > WorldState.CurrentTime).ToList();
+        if (unhealed.Count > 0)
+            hints.Add($"Heal all Reiryu to full: {unhealed.Count} left, {(unhealed.Min(Deadline) - WorldState.CurrentTime).TotalSeconds:f0}s");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
