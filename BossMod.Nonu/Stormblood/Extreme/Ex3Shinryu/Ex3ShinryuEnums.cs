@@ -16,10 +16,9 @@ public enum OID : uint
     MassiveCocoon = 0x1F91, // R6.000, x0 (spawn during fight)
     Reiryu = 0x1F92, // R2.000, x0 (spawn during fight)
     // TODO: Unreal has a second helper for the lower arena (0x4DEB); the Extreme one may be separate too
-    Helper = 0x18D6, // R0.500, x12, Helper type
+    Helper = 0x1FA7, // R0.500, x56, Helper type, also drops the cocoon meteor
     LeftWingP3 = 0x1FA9, // R11.200, x0 (spawn during fight), Part type
     RightWingP3 = 0x1FAA, // R11.200, x0 (spawn during fight), Part type
-    CocoonMeteor = 0x1FA7, // R0.500, x0 (spawn during fight)
     ReiryuHelper = 0x1FA8, // R0.500, x0 (spawn during fight)
     Platform = 0x1EA1A1, // R2.000, x10, EventObj type
     WaterSpout = 0x1E8536, // R2.000, x1, EventObj type
@@ -84,7 +83,7 @@ public enum AID : uint
     TouchdownVisual = 9747, // Boss->self, no cast, single-target
     Touchdown = 9748, // Helper->self, 5.0s cast, range 50 circle, proximity
     MeteorImpact = 9701, // Cocoon/MassiveCocoon->self, 4.0s cast, range 60 circle, proximity
-    MeteorImpactMarker = 9743, // CocoonMeteor->self, 5.0s cast, range 60 circle, proximity
+    MeteorImpactMarker = 9743, // Helper->self, 5.0s cast, range 60 circle, proximity
     ExplosiveHatch = 9702, // Cocoon->self, no cast, range 90 circle
     CocoonHatch = 9733, // Cocoon/MassiveCocoon->self, no cast, single-target
     Fireball = 9739, // Ginryu/Hakkinryu->location, 2.5s cast, range 4 circle
