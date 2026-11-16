@@ -944,7 +944,6 @@ class ArenaChanges : BossComponent
 {
     public bool Shattered { get; private set; }
     private static readonly ArenaBoundsSquare _p1 = new(30, MapResolution: 0.3f);
-    private PolygonClipper.Operand _tiles = new(CurveApprox.Rect(new WDir(0, 1), 30, 30));
     private bool _p1Active = true;
     private readonly bool[] _broken = new bool[9];
     private readonly bool[] _cracked = new bool[9];
@@ -977,10 +976,33 @@ class ArenaChanges : BossComponent
         if ((state >> 16) != 2 || (state & 0xFFFF) == 0x8000)
             return;
         _broken[TileIndex(center)] = true;
-        var offset = center - Arena.Center;
-        var tile = new PolygonClipper.Operand(CurveApprox.Rect(new WDir(0, 1), 10, 10).Select(c => c + offset));
-        _tiles = new(_p1.Clipper.Difference(_tiles, tile));
-        Arena.Bounds = new ArenaBoundsCustom(30, _p1.Clipper.Simplify(_tiles), MapResolution: 0.3f);
+        Arena.Bounds = new ArenaBoundsCustom(30, _p1.Clipper.Simplify(BuildTiles(), Clipper2Lib.FillRule.NonZero), MapResolution: 0.3f);
+    }
+
+    // Intact tiles, plus a 2y crossing wherever two tiles only meet at a corner (players cross there; the tank's north-west tail
+    // spot is often only reachable that way), since the pathfinder can't pass through a single point.
+    private PolygonClipper.Operand BuildTiles()
+    {
+        var shape = new PolygonClipper.Operand();
+        WDir TileOffset(int col, int row) => new(col * 20 - 20, row * 20 - 20);
+        bool Whole(int col, int row) => !_broken[col + 3 * row];
+        for (var row = 0; row < 3; ++row)
+            for (var col = 0; col < 3; ++col)
+                if (Whole(col, row))
+                    shape.AddContour(CurveApprox.Rect(TileOffset(col, row), new WDir(0, 1), 10, 10));
+        for (var row = 0; row < 2; ++row)
+        {
+            for (var col = 0; col < 2; ++col)
+            {
+                var corner = new WDir(col * 20 - 10, row * 20 - 10);
+                bool a = Whole(col, row), b = Whole(col + 1, row), c = Whole(col, row + 1), d = Whole(col + 1, row + 1);
+                if (a && d && !b && !c)
+                    shape.AddContour(CurveApprox.Rect(corner, new WDir(1, 1).Normalized(), 1, 2));
+                else if (b && c && !a && !d)
+                    shape.AddContour(CurveApprox.Rect(corner, new WDir(-1, 1).Normalized(), 1, 2));
+            }
+        }
+        return shape;
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
