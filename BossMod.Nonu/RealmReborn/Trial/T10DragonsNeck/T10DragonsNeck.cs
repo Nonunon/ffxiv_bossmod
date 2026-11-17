@@ -41,12 +41,21 @@ public enum SID : uint
     Stun = 149, // none->player, extra=0x0
     Invigoration = 611, // none->Typhon/Helper, extra=stacks, 8 at severe snort start
     WetPlate = 612, // none->player, extra=stacks, from aqua breath while an imp
-    Imp = 613, // Boss->player, extra=0x6
+    Imp = 613, // Boss->player, extra=0x6, not cleansable (esuna does nothing); ends when it times out or when all 8 invigoration stacks are punched off
     OutOfTheAction = 626, // none->player, extra=0x0
 }
 
 // 15y from the centre, stopped only by the outer wall, so standing within 5y of the centre keeps you on the platform
-class SevereSnort(BossModule module) : Components.KnockbackFromCastTarget(module, AID.SevereSnort, 15);
+class SevereSnort(BossModule module) : Components.KnockbackFromCastTarget(module, AID.SevereSnort, 15)
+{
+    public const float SafeRadius = 5;
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        if (Casters.Count > 0)
+            Arena.ZoneCircle(Arena.Center, SafeRadius, ArenaColor.SafeFromAOE);
+    }
+}
 // TODO: fungah knocks the tank off the platform; the tank could face typhon toward the center to stay on top
 class Fungahhh(BossModule module) : Components.StandardAOEs(module, AID.Fungahhh, new AOEShapeCone(12.5f, 45.Degrees()));
 class Fireball(BossModule module) : Components.StandardAOEs(module, AID.Fireball, 8);
@@ -83,9 +92,19 @@ class AquaBreath(BossModule module) : Components.Cleave(module, AID.AquaBreath, 
             base.AddHints(slot, actor, hints);
     }
 
+    // imps that still need wet plate get the cone in green, aimed at ultros' target, for as long as they need it
+    private bool WantsBreath(Actor actor) => Imps.WantsWetPlate(actor) && Module.Enemies(OID.Typhon).All(t => t.FindStatus(SID.Invigoration) == null);
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        if (WantsBreath(pc))
+            foreach (var (origin, _, angle) in OriginsAndTargets())
+                Arena.ZoneCone(origin.Position, 0, Shape is AOEShapeCone c ? c.Radius : 0, angle, 45.Degrees(), ArenaColor.SafeFromAOE);
+    }
+
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
-        if (Active)
+        if (Active || WantsBreath(pc))
             base.DrawArenaForeground(pcSlot, pc);
     }
 
@@ -96,10 +115,10 @@ class AquaBreath(BossModule module) : Components.Cleave(module, AID.AquaBreath, 
             if (Active)
                 base.AddAIHints(slot, actor, assignment, hints);
         }
-        else if (Module.Enemies(OID.Typhon).FirstOrDefault(t => t.FindStatus(SID.Invigoration) != null) == null)
+        else if (WantsBreath(actor))
         {
-            var ultros = Module.PrimaryActor;
-            hints.GoalZones.Add(AIHints.GoalSingleTarget(ultros.Position + (ultros.HitboxRadius + 3) * ultros.Rotation.ToDirection(), 3, 10));
+            foreach (var (origin, _, angle) in OriginsAndTargets())
+                hints.GoalZones.Add(AIHints.GoalSingleTarget(origin.Position + (origin.HitboxRadius + 3) * angle.ToDirection(), 3, 10));
         }
     }
 }
@@ -209,7 +228,7 @@ class Imps(BossModule module) : BossComponent(module)
         if (actor.FindStatus(SID.Imp) == null || InvigoratedTyphon() is not { } typhon || WetPlates(actor) == 0)
             return;
         hints.ForcedTarget = typhon;
-        hints.GoalZones.Add(AIHints.GoalSingleTarget(typhon.Position, typhon.HitboxRadius, 10));
+        hints.GoalZones.Add(AIHints.GoalSingleTarget(Arena.Center, SevereSnort.SafeRadius - 1, 10));
         hints.ActionsToExecute.Push(ActionID.MakeSpell(AID.ImpPunch), typhon, ActionQueue.Priority.High);
     }
 }
