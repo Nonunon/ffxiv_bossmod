@@ -33,22 +33,47 @@ public enum AID : uint
     Megavolt = 3134, // Boss->self, 3.5s cast, range 6+R circle
     TentacleVisual = 3135, // Boss->self, no cast, single-target
     Wallop = 3136, // Tentacle->self, 3.0s cast, range 19+R width 8 rect
+    ImpPunch = 3139, // player->Typhon/Boss, no cast, single-target, the only action imps have
 }
 
 public enum SID : uint
 {
     Stun = 149, // none->player, extra=0x0
+    Invigoration = 611, // none->Typhon/Helper, extra=stacks, 8 at severe snort start
+    WetPlate = 612, // none->player, extra=stacks, from aqua breath while an imp
     Imp = 613, // Boss->player, extra=0x6
     OutOfTheAction = 626, // none->player, extra=0x0
 }
 
-class SevereSnort(BossModule module) : Components.CastHint(module, AID.SevereSnort, "Knockback off the platform!");
+// 15y from the centre, stopped only by the outer wall, so standing within 5y of the centre keeps you on the platform
+class SevereSnort(BossModule module) : Components.KnockbackFromCastTarget(module, AID.SevereSnort, 15);
 // TODO: fungah knocks the tank off the platform; the tank could face typhon toward the center to stay on top
 class Fungah(BossModule module) : Components.Cleave(module, AID.Fungah, new AOEShapeCone(12.5f, 45.Degrees()), (uint)OID.Typhon);
 class Fungahhh(BossModule module) : Components.StandardAOEs(module, AID.Fungahhh, new AOEShapeCone(12.5f, 45.Degrees()));
 class Fireball(BossModule module) : Components.StandardAOEs(module, AID.Fireball, 8);
 class FourTonzeWeight(BossModule module) : Components.StandardAOEs(module, AID.FourTonzeWeight, 4);
-class AquaBreath(BossModule module) : Components.Cleave(module, AID.AquaBreath, new AOEShapeCone(13.1f, 45.Degrees()));
+// imps want to stand in it: each hit gives a wet plate stack, which lets imp punch strip typhon's invigoration
+class AquaBreath(BossModule module) : Components.Cleave(module, AID.AquaBreath, new AOEShapeCone(13.1f, 45.Degrees()))
+{
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (!Imps.WantsWetPlate(actor))
+            base.AddHints(slot, actor, hints);
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (!Imps.WantsWetPlate(actor))
+        {
+            base.AddAIHints(slot, actor, assignment, hints);
+        }
+        else if (Module.Enemies(OID.Typhon).FirstOrDefault(t => t.FindStatus(SID.Invigoration) != null) == null)
+        {
+            var ultros = Module.PrimaryActor;
+            hints.GoalZones.Add(AIHints.GoalSingleTarget(ultros.Position + (ultros.HitboxRadius + 3) * ultros.Rotation.ToDirection(), 3, 10));
+        }
+    }
+}
 class Megavolt(BossModule module) : Components.StandardAOEs(module, AID.Megavolt, 11.1f);
 class Wallop(BossModule module) : Components.StandardAOEs(module, AID.Wallop, new AOEShapeRect(26.2f, 4));
 
@@ -124,31 +149,39 @@ class Ledge(BossModule module) : BossComponent(module)
     }
 }
 
-class ImpSong(BossModule module) : BossComponent(module)
+// imp song turns the dps into imps until severe snort; imps with wet plate punch typhon during it, each punch strips one of 8 invigoration stacks, all 8 stops the cast
+class Imps(BossModule module) : BossComponent(module)
 {
-    private BitMask _imps;
+    public const int WantedWetPlates = 2;
+
+    public static int WetPlates(Actor actor) => actor.FindStatus(SID.WetPlate)?.Extra ?? 0;
+    public static bool WantsWetPlate(Actor actor) => actor.FindStatus(SID.Imp) != null && WetPlates(actor) < WantedWetPlates;
+
+    private Actor? InvigoratedTyphon() => Module.Enemies(OID.Typhon).FirstOrDefault(t => t.FindStatus(SID.Invigoration) != null);
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (actor.FindStatus(SID.Imp) == null)
+            return;
+        if (InvigoratedTyphon() != null)
+            hints.Add(WetPlates(actor) > 0 ? "Imp Punch Typhon!" : "Stay close to Typhon!", false);
+        else if (WantsWetPlate(actor))
+            hints.Add("Get hit by Aqua Breath!", false);
+    }
 
     public override void AddGlobalHints(GlobalHints hints)
     {
-        if (_imps.Any())
-            hints.Add("Cleanse Imp!");
+        if (InvigoratedTyphon()?.FindStatus(SID.Invigoration) is { } inv)
+            hints.Add($"Invigoration stacks: {inv.Extra}");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        hints.ShouldCleanse |= _imps;
-    }
-
-    public override void OnStatusGain(Actor actor, in ActorStatus status)
-    {
-        if (status.ID == (uint)SID.Imp && Raid.TryFindSlot(actor.InstanceID, out var slot))
-            _imps.Set(slot);
-    }
-
-    public override void OnStatusLose(Actor actor, in ActorStatus status)
-    {
-        if (status.ID == (uint)SID.Imp && Raid.TryFindSlot(actor.InstanceID, out var slot))
-            _imps.Clear(slot);
+        if (actor.FindStatus(SID.Imp) == null || InvigoratedTyphon() is not { } typhon || WetPlates(actor) == 0)
+            return;
+        hints.ForcedTarget = typhon;
+        hints.GoalZones.Add(AIHints.GoalSingleTarget(typhon.Position, typhon.HitboxRadius, 10));
+        hints.ActionsToExecute.Push(ActionID.MakeSpell(AID.ImpPunch), typhon, ActionQueue.Priority.High);
     }
 }
 
@@ -167,7 +200,7 @@ class T10DragonsNeckStates : StateMachineBuilder
             .ActivateOnEnter<Wallop>()
             .ActivateOnEnter<Snortsault>()
             .ActivateOnEnter<Ledge>()
-            .ActivateOnEnter<ImpSong>()
+            .ActivateOnEnter<Imps>()
             .Raw.Update = () => module.PrimaryActor.IsDeadOrDestroyed && module.Enemies(OID.Typhon).All(e => e.IsDeadOrDestroyed);
     }
 }
