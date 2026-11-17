@@ -197,10 +197,10 @@ class Ledge(BossModule module) : BossComponent(module)
     }
 }
 
-// imp song turns the dps into imps until severe snort; imps with wet plate punch typhon during it, each punch strips one of 8 invigoration stacks, all 8 stops the cast
+// imp song turns the dps into imps; aqua breath gives each imp wet plate stacks (3 seen). while typhon is invigorated (8 stacks at severe snort), one imp punch on him strips as many stacks as the puncher has wet plates and ends imp on the spot, even with 0 plates; all 8 gone stops the cast
 class Imps(BossModule module) : BossComponent(module)
 {
-    public const int WantedWetPlates = 2;
+    public const int WantedWetPlates = 3;
 
     public static int WetPlates(Actor actor) => actor.FindStatus(SID.WetPlate)?.Extra ?? 0;
     public static bool WantsWetPlate(Actor actor) => actor.FindStatus(SID.Imp) != null && WetPlates(actor) < WantedWetPlates;
@@ -212,7 +212,7 @@ class Imps(BossModule module) : BossComponent(module)
         if (actor.FindStatus(SID.Imp) == null)
             return;
         if (InvigoratedTyphon() != null)
-            hints.Add(WetPlates(actor) > 0 ? "Imp Punch Typhon!" : "Stay close to Typhon!", false);
+            hints.Add("Imp Punch Typhon!", false);
         else if (WantsWetPlate(actor))
             hints.Add("Get hit by Aqua Breath!", false);
     }
@@ -225,7 +225,7 @@ class Imps(BossModule module) : BossComponent(module)
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (actor.FindStatus(SID.Imp) == null || InvigoratedTyphon() is not { } typhon || WetPlates(actor) == 0)
+        if (actor.FindStatus(SID.Imp) == null || InvigoratedTyphon() is not { } typhon)
             return;
         hints.ForcedTarget = typhon;
         hints.GoalZones.Add(AIHints.GoalSingleTarget(Arena.Center, SevereSnort.SafeRadius - 1, 10));
