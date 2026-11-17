@@ -48,24 +48,53 @@ public enum SID : uint
 // 15y from the centre, stopped only by the outer wall, so standing within 5y of the centre keeps you on the platform
 class SevereSnort(BossModule module) : Components.KnockbackFromCastTarget(module, AID.SevereSnort, 15);
 // TODO: fungah knocks the tank off the platform; the tank could face typhon toward the center to stay on top
-class Fungah(BossModule module) : Components.Cleave(module, AID.Fungah, new AOEShapeCone(12.5f, 45.Degrees()), (uint)OID.Typhon);
 class Fungahhh(BossModule module) : Components.StandardAOEs(module, AID.Fungahhh, new AOEShapeCone(12.5f, 45.Degrees()));
 class Fireball(BossModule module) : Components.StandardAOEs(module, AID.Fireball, 8);
 class FourTonzeWeight(BossModule module) : Components.StandardAOEs(module, AID.FourTonzeWeight, 4);
+
+// ultros alternates aqua breath with his other moves: it lands 4.7-9s after megavolt, imp song or 4-tonze weight resolves, so the cleave only shows in that window
 // imps want to stand in it: each hit gives a wet plate stack, which lets imp punch strip typhon's invigoration
 class AquaBreath(BossModule module) : Components.Cleave(module, AID.AquaBreath, new AOEShapeCone(13.1f, 45.Degrees()))
 {
+    private DateTime _windowStart = DateTime.MaxValue;
+
+    private bool Active => WorldState.CurrentTime >= _windowStart;
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        switch ((AID)spell.Action.ID)
+        {
+            case AID.Megavolt:
+            case AID.ImpSong:
+            case AID.FourTonzeWeightVisual:
+                _windowStart = WorldState.FutureTime(3.5f);
+                NextExpected = WorldState.FutureTime(4.7f);
+                break;
+            case AID.AquaBreath:
+                _windowStart = DateTime.MaxValue;
+                break;
+        }
+    }
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (!Imps.WantsWetPlate(actor))
+        if (Active && !Imps.WantsWetPlate(actor))
             base.AddHints(slot, actor, hints);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Active)
+            base.DrawArenaForeground(pcSlot, pc);
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         if (!Imps.WantsWetPlate(actor))
         {
-            base.AddAIHints(slot, actor, assignment, hints);
+            if (Active)
+                base.AddAIHints(slot, actor, assignment, hints);
         }
         else if (Module.Enemies(OID.Typhon).FirstOrDefault(t => t.FindStatus(SID.Invigoration) != null) == null)
         {
@@ -191,7 +220,6 @@ class T10DragonsNeckStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<SevereSnort>()
-            .ActivateOnEnter<Fungah>()
             .ActivateOnEnter<Fungahhh>()
             .ActivateOnEnter<Fireball>()
             .ActivateOnEnter<FourTonzeWeight>()
