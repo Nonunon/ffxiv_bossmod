@@ -420,6 +420,19 @@ class ElevateAndEviscerate(BossModule module) : Components.Knockback(module, ign
         return res;
     }
 
+    // landing tile for the target: red if cracked or broken (the impact drops them), green if whole
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        if (_floor == null || Caster == null || pc != Target)
+            return;
+        var off = Landing - Module.Center;
+        if (Math.Abs(off.X) > 20 || Math.Abs(off.Z) > 20)
+            return;
+        var cell = _floor.CellIndex(Landing);
+        var deadly = _floor.DamagedCells[cell] || _floor.DestroyedCells[cell];
+        Arena.ZoneRect(_floor.CellCenter(cell), new WDir(0, 1), 5, 5, 5, deadly ? ArenaColor.Danger : ArenaColor.SafeFromAOE);
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if ((AID)spell.Action.ID == AID.ElevateAndEviscerate)
