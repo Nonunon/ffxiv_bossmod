@@ -528,8 +528,9 @@ class DerailmentSiege(BossModule module) : Components.GenericTowers(module)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
+        // damage is split: with all 8 in nobody took over 40k, with 5 in two died to the last hit (137-161k), so everyone stacks
         if ((AID)spell.Action.ID == AID.DerailmentSiegeFinal)
-            Towers.Add(new(caster.Position, 5, maxSoakers: 8, activation: Module.CastFinishAt(spell)));
+            Towers.Add(new(caster.Position, 5, minSoakers: Raid.WithoutSlot().Count(), maxSoakers: 8, activation: Module.CastFinishAt(spell)));
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
