@@ -298,11 +298,11 @@ class LightningBurst(BossModule module) : Components.BaitAwayIcon(module, new AO
 
 class LightningExpress(BossModule module) : Components.KnockbackFromCastTarget(module, AID.LightningExpress, 30, kind: Kind.DirForward, stopAtWall: true);
 
-// the helper's cast ends with the pull, the boss's visual a second earlier; only players within 30y of the boss get pulled
-// (direction is flipped below, so the 30y rect points backwards)
+// the helper's cast ends with the pull, the boss's visual a second earlier; only players within 30y of the caster get pulled
+// (its cast location sits 10y ahead of it, so the source is the caster itself; facing is flipped, so the rect points backwards)
 class Windpipe(BossModule module) : Components.KnockbackFromCastTarget(module, AID.Windpipe, 20, shape: new AOEShapeRect(0, 10, 30), kind: Kind.DirForward, stopAtWall: true)
 {
-    public override IEnumerable<Source> Sources(int slot, Actor actor) => base.Sources(slot, actor).Select(src => src with { Direction = src.Direction + 180.Degrees() });
+    public override IEnumerable<Source> Sources(int slot, Actor actor) => Casters.Select(c => new Source(c.Position, Distance, Module.CastFinishAt(c.CastInfo!), Shape, c.CastInfo!.Rotation + 180.Degrees(), KnockbackKind));
     public override PointTest DestinationUnsafe(int slot, Actor actor) => pos => pos.InRect(Arena.Center - new WDir(0, 15), new WDir(0, 10), 10);
 }
 
