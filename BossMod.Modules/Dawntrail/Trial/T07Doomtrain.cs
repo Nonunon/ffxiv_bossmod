@@ -134,15 +134,18 @@ class CarGeometry : BossComponent
             AirShape.Outline(Arena, Arena.Center, default, ArenaColor.Border);
     }
 
+    // jumps only trigger close to the spot; along the platform wall 0.5y off it they don't
+    private const float PortalRadius = 0.5f;
+
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
         foreach (var p in Portals)
-            Arena.AddCircle(p, 1, ArenaColor.Safe);
+            Arena.AddCircle(p, PortalRadius, ArenaColor.Safe);
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        hints.Portals.AddRange(_portals.Select(p => (p.from, 1f, p.to)));
+        hints.Portals.AddRange(_portals.Select(p => (p.from, PortalRadius, p.to)));
         if (actor.PosRot.Y < 4)
             foreach (var (c, hw, hl) in _platforms)
                 hints.TemporaryObstacles.Add(Shapes.RectOutline(c, hl, hw));
