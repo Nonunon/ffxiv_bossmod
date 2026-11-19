@@ -583,8 +583,10 @@ class T07DoomtrainStates : StateMachineBuilder
 {
     public T07DoomtrainStates(BossModule module) : base(module)
     {
+        // the tankbuster icons land 0.1s before the boss starts casting, so the bait has to be watching all fight
         DeathPhase(0, SinglePhase)
-            .ActivateOnEnter<CarGeometry>();
+            .ActivateOnEnter<CarGeometry>()
+            .ActivateOnEnter<LightningBurst>();
     }
 
     private void SinglePhase(uint id)
@@ -723,10 +725,10 @@ class T07DoomtrainStates : StateMachineBuilder
 
     private State Tankbusters(uint id, float delay)
     {
+        var before = 0;
         var start = Cast(id, AID.LightningBurstVisual, delay, 4.7f)
-            .ActivateOnEnter<LightningBurst>();
-        ComponentCondition<LightningBurst>(id + 2, 0.6f, l => l.NumCasts > 0, "Tankbusters")
-            .DeactivateOnExit<LightningBurst>()
+            .OnEnter(() => before = Module.FindComponent<LightningBurst>()?.NumCasts ?? 0);
+        ComponentCondition<LightningBurst>(id + 2, 0.6f, l => l.NumCasts > before, "Tankbusters")
             .SetHint(StateMachine.StateHint.Tankbuster);
         return start;
     }
