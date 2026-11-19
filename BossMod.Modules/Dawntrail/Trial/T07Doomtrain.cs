@@ -587,7 +587,7 @@ class T07DoomtrainStates : StateMachineBuilder
 
     private void SinglePhase(uint id)
     {
-        Car1(id, 10);
+        Car1(id, 8.2f);
         Car2(id + 0x10000, 5.7f);
         Car3(id + 0x20000, 5.8f);
         Car4(id + 0x30000, 5.8f);
@@ -658,15 +658,17 @@ class T07DoomtrainStates : StateMachineBuilder
         ComponentCondition<AetherSurge>(id + 0x20, 10.7f, a => a.NumCasts >= 4, "Cones 1", 2);
         ComponentCondition<AetherialRay>(id + 0x21, 1.8f, a => a.NumCasts >= 1, "Tank cone 1")
             .SetHint(StateMachine.StateHint.Tankbuster);
-        ComponentCondition<AetherSurge>(id + 0x30, 8.7f, a => a.NumCasts >= 8, "Cones 2");
-        ComponentCondition<AetherialRay>(id + 0x31, 1.8f, a => a.NumCasts >= 2, "Tank cone 2")
+        ComponentCondition<AetherSurge>(id + 0x30, 7.5f, a => a.NumCasts >= 8, "Cones 2");
+        ComponentCondition<AetherialRay>(id + 0x31, 1.6f, a => a.NumCasts >= 2, "Tank cone 2")
             .SetHint(StateMachine.StateHint.Tankbuster);
-        ComponentCondition<AetherSurge>(id + 0x40, 7.3f, a => a.NumCasts >= 12, "Cones 3")
-            .DeactivateOnExit<AetherSurge>();
-        ComponentCondition<AetherialRay>(id + 0x41, 1.8f, a => a.NumCasts >= 3, "Tank cone 3")
-            .DeactivateOnExit<AetherialRay>()
+        // third set starts 4.5-7.2s after the second resolves; a slow kill sees a fourth start before the orb dies
+        ComponentCondition<AetherSurge>(id + 0x40, 10.5f, a => a.NumCasts >= 12, "Cones 3", 3);
+        ComponentCondition<AetherialRay>(id + 0x41, 1.6f, a => a.NumCasts >= 3, "Tank cone 3", 2)
             .SetHint(StateMachine.StateHint.Tankbuster);
-        ComponentCondition<RunawayTrain>(id + 0x50, 23.9f, r => r.NumCasts > 0, "Raidwide")
+        Condition(id + 0x48, 3, () => Module.Enemies(OID.AetherIntermission).All(a => a.IsDeadOrDestroyed), "Orb dies", 30)
+            .DeactivateOnExit<AetherSurge>()
+            .DeactivateOnExit<AetherialRay>();
+        ComponentCondition<RunawayTrain>(id + 0x50, 19.5f, r => r.NumCasts > 0, "Raidwide")
             .DeactivateOnExit<RunawayTrain>()
             .ExecOnExit<CarGeometry>(c => c.Car = 4)
             .SetHint(StateMachine.StateHint.Raidwide);
@@ -696,7 +698,7 @@ class T07DoomtrainStates : StateMachineBuilder
 
     private void Car5(uint id, float delay)
     {
-        Hails(id, delay, 17.1f, 11.1f);
+        Hails(id, delay, 14.1f, 14.1f);
         Cast(id + 0x10, AID.TurretCrossing, 4.3f, 2.7f)
             .ActivateOnEnter<Electray>();
         HeadOn(id + 0x20, 2.3f, 3);
@@ -713,7 +715,7 @@ class T07DoomtrainStates : StateMachineBuilder
             .SetHint(StateMachine.StateHint.Raidwide);
         Tankbusters(id + 0x90, 2.2f);
         Hails(id + 0xA0, 7.8f, 14.1f, 14.1f);
-        // TODO: timeline after the last Arcane Revelation + enrage unseen (both kills ended before it)
+        // TODO: second hail of the last set and the enrage unseen (kills end before it)
         SimpleState(id + 0xFF0000, 10000, "???");
     }
 
@@ -739,6 +741,7 @@ class T07DoomtrainStates : StateMachineBuilder
         ComponentCondition<HeadOnEmission>(id + 1, 6.7f, h => h.NumCasts >= count, "Ground / platforms");
     }
 
+    // the short move (2 spots) and the medium move (3 spots) come in either order: short first is 14.1 + 14.1, medium first is 17.2 + ~11
     private void Hails(uint id, float delay, float first, float second)
     {
         Cast(id, AID.ArcaneRevelation, delay, 1.7f)
